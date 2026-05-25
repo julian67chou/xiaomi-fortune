@@ -429,90 +429,71 @@
 
   };
 
-  // 天魁天鉞（年干）
-  const KUI_YUE_BY_GAN = {
-    0: { kui: 1, yue: 7 },  // 甲：丑(1)未(7)
-    1: { kui: 0, yue: 6 },  // 乙：子(0)申(8)…不對
-    5: { kui: 0, yue: 6 },  // 己：子(0)申(8)…等等
-  };
+  // 天魁天鉞（年干決定）：甲戊庚牛羊，乙己鼠猴鄉，丙丁豬雞位，六辛逢虎馬，壬癸蛇兔藏
+  const KUI = [1, 0, 11, 10, 1, 0, 1, 2, 3, 3];  // 天魁
+  const YUE = [7, 8, 9, 9, 7, 8, 7, 6, 5, 5];    // 天鉞
 
-  // 天魁天鉞：甲戊庚牛羊，乙己鼠猴鄉，丙丁豬雞位，六辛逢虎馬，壬癸蛇兔藏
-  // 丑=牛=1, 未=羊=7
-  // 子=鼠=0, 申=猴=8
-  // Other干支... 轉成索引
-  const KUI_YUE = {
-    0: [1, 7],   // 甲：丑(1)未(7)
-    1: [0, 8],   // 乙：子(0)申(8)
-    2: [11, 9],  // 丙：亥(11)酉(9)
-    3: [10, 9],  // 丁：亥(10)酉(9)
-    4: [1, 7],   // 戊：丑(1)未(7)
-    5: [0, 8],   // 己：子(0)申(8)
-    6: [2, 6],   // 庚：丑(1)…不對，庚是丑未？甲戊庚牛羊
-    7: [2, 6],   // 辛：寅(2)午(6) — 六辛逢虎馬
-    8: [4, 10],  // 壬：辰(4)戌(10)
-    9: [4, 10],  // 癸：辰(4)戌(10)
-  };
-  // 口訣：甲戊庚牛羊，乙己鼠猴鄉，丙丁豬雞位，六辛逢虎馬，壬癸蛇兔藏
-  // 牛羊=丑未(1,7), 鼠猴=子申(0,8), 豬雞=亥酉(11,9), 虎馬=寅午(2,6), 蛇兔=辰卯(4,3)...不對
-  // 天魁天鉞是天乙貴人，分陽貴陰貴
-  // 重新查證後修正：
+  // 文昌文曲（時辰決定）
+  // 文昌從戌(10)起逆數到生時，文曲從辰(4)起順數到生時
+  function wenChang(hourIdx) { return ((10 - hourIdx) % 12 + 12) % 12; }
+  function wenQu(hourIdx) { return ((4 + hourIdx) % 12 + 12) % 12; }
 
-  // 正確的天魁（陽貴）天鉞（陰貴）口訣：
-  // 甲戊(庚) → 陽貴丑(1)，陰貴未(7) → 甲戊庚牛羊
-  // 乙(己) → 陽貴子(0)，陰貴申(8) → 乙己鼠猴鄉
-  // 丙(丁) → 陽貴亥(11)，陰貴酉(9) → 丙丁豬雞位
-  // 庚 → 陽貴丑(1)，陰貴未(7) → 同甲戊
-  // 辛 → 陽貴寅(2)，陰貴午(6) → 六辛逢虎馬
-  // 壬(癸) → 陽貴卯(3)，陰貴巳(5) → 壬癸兔蛇藏...不對
+  // 擎羊陀羅（年支決定）：擎羊=年支+1，陀羅=年支-1
+  function qingYang(yearZhiIdx) { return (yearZhiIdx + 1) % 12; }
+  function tuoLuo(yearZhiIdx) { return ((yearZhiIdx - 1) % 12 + 12) % 12; }
 
-  // 正確版（重新查）：
-  const KUI = [1, 0, 11, 10, 1, 0, 1, 2, 3, 3];  // 天魁：甲丑,乙子,丙亥,丁亥,戊丑,己子,庚丑,辛寅,壬卯,癸卯
-  const YUE = [7, 8, 9, 9, 7, 8, 7, 6, 5, 5];    // 天鉞：甲未,乙申,丙酉,丁酉,戊未,己申,庚未,辛午,壬巳,癸巳
-
-  // 文昌文曲（辰宮起，順逆時）
-  // 文昌：子(0)起順時到生時，但其實是辰宮起順數
-  // 文曲：辰(4)宮起逆數到生時
-  // 改為：文昌從辰宮(4)順數，文曲從戌宮(10)逆數（標準版）
-  // 更標準：文昌從午(6)起順數到生時；文曲從辰(4)起逆數到生時
-  // 再查：文昌戌宮(10)起逆時到生時，文曲辰宮(4)起順時到生時
-  
-  // 文昌文曲：文昌戌宮起逆時針數到生時，文曲辰宮起順時針數到生時
-  function wenChang(hourIdx) {
-    return ((10 - hourIdx) % 12 + 12) % 12; // 戌(10)逆數
-  }
-  function wenQu(hourIdx) {
-    return ((4 + hourIdx) % 12 + 12) % 12; // 辰(4)順數
-  }
-
-  // 擎羊陀羅（年支）
-  // 擎羊：年支+1（順數一位），陀羅：年支-1（逆數一位）
-  function qingYang(yearZhiIdx) {
-    return (yearZhiIdx + 1) % 12;
-  }
-  function tuoLuo(yearZhiIdx) {
-    return ((yearZhiIdx - 1) % 12 + 12) % 12;
-  }
-
-  // 火星鈴星（年支 + 時辰，有對照表）
-  // 火星：年支定子時位置，順時辰格數
+  // 火星鈴星（年支+時辰決定）
+  // 火星：年支三合局決定起點，順數生時格數
   // 口訣：申子辰人寅戌揚，寅午戌人丑卯方，巳酉丑人卯戌位，亥卯未人酉戌房
-  // 火鈴有更複雜的規則，這裡先用簡化表
-  // 火星：年支決定的起始地支，然後順數生時格數
-  // 鈴星：年支決定的起始地支，然後逆數生時格數
-  
-  // 完整火星表（年支→子時火星位置）：
-  const HUO_XING_BASE = {
-    0: 2,  // 子→寅(2)
-    1: 4,  // 丑→辰(4)? ... 
-  };
-  
-  // 這個太複雜，直接刻對照表
-  // 火星位置表：年支+時辰→火星地支索引
-  // 鈴星位置表：年支+時辰→鈴星地支索引
-  
-  // 地空地劫（年支+時辰）
-  // 地空：年支決定的起始+時辰
-  // 地劫：年支決定的起始+時辰
+  // 鈴星：年支三合局決定起點，逆數生時格數（或另有口訣）
+  var HUO_BASE = { 0:2, 4:2, 8:2, 2:1, 6:1, 10:1, 3:3, 7:3, 11:3, 1:9, 5:9, 9:9 };
+  var LING_BASE = { 0:0, 4:0, 8:0, 2:4, 6:4, 10:4, 3:8, 7:8, 11:8, 1:6, 5:6, 9:6 };
+  function huoXing(yearZhiIdx, hourIdx) {
+    var base = HUO_BASE[yearZhiIdx] !== undefined ? HUO_BASE[yearZhiIdx] : 2;
+    return ((base + hourIdx) % 12 + 12) % 12;
+  }
+  function lingXing(yearZhiIdx, hourIdx) {
+    var base = LING_BASE[yearZhiIdx] !== undefined ? LING_BASE[yearZhiIdx] : 0;
+    return ((base - hourIdx) % 12 + 12) % 12;
+  }
+
+  // 祿存（年干決定）：甲祿到寅，乙祿到卯，丙戊祿在巳，丁己祿在午，庚祿居中，辛祿到酉，壬祿到亥，癸祿到子
+  const LU_CUN = [2, 3, 5, 6, 5, 6, 8, 9, 11, 0];
+
+  // 地空地劫（年支決定）
+  // 地空：亥卯未人申(8)，巳酉丑人午(6)，申子辰人寅(2)，寅午戌人戌(10)
+  // 地劫：亥卯未人巳(5)，巳酉丑人酉(9)，申子辰人亥(11)，寅午戌人辰(4)
+  function diKong(yearZhiIdx) {
+    var map = {0:2,4:2,8:2, 2:10,6:10,10:10, 3:6,7:6,11:6, 1:8,5:8,9:8};
+    return map[yearZhiIdx] !== undefined ? map[yearZhiIdx] : 2;
+  }
+  function diJie(yearZhiIdx) {
+    var map = {0:11,4:11,8:11, 2:4,6:4,10:4, 3:9,7:9,11:9, 1:5,5:5,9:5};
+    return map[yearZhiIdx] !== undefined ? map[yearZhiIdx] : 11;
+  }
+
+  // 左輔右弼（月支/時辰決定）
+  // 左輔：辰(4)宮起順數到生月
+  // 右弼：戌(10)宮起逆數到生月
+  function zuoFu(month) { return ((4 + (month - 1)) % 12 + 12) % 12; }
+  function youBi(month) { return ((10 - (month - 1)) % 12 + 12) % 12; }
+
+  // 四化（年干決定）[化祿, 化權, 化科, 化忌]
+  // 依 ZIWEI_MAIN_STARS 索引：0紫微,1天機,3太陽,4武曲,5天同,7廉貞,8天府,9太陰,10貪狼,11巨門,12天相,13天梁,14七殺,16破軍
+  // -1表示輔星（文昌文曲左輔右弼會另外處理）
+  var SIHUA_BY_GAN = [
+    [7, 16, 4, 3],     // 甲：廉貞,破軍,武曲,太陽
+    [1, 13, 0, 9],     // 乙：天機,天梁,紫微,太陰
+    [5, 1, -2, 7],     // 丙：天同,天機,文昌(輔),廉貞
+    [9, 5, 1, 11],     // 丁：太陰,天同,天機,巨門
+    [10, 9, -3, 1],    // 戊：貪狼,太陰,右弼(輔),天機
+    [4, 10, 13, -4],   // 己：武曲,貪狼,天梁,文曲(輔)
+    [3, 4, 9, 5],      // 庚：太陽,武曲,太陰,天同
+    [11, 3, -4, -2],   // 辛：巨門,太陽,文曲(輔),文昌(輔)
+    [13, 0, -5, 4],    // 壬：天梁,紫微,左輔(輔),武曲
+    [16, 11, 9, 10],   // 癸：破軍,巨門,太陰,貪狼
+  ];
+  // 輔星四化名稱對應：-2=文昌, -3=右弼, -4=文曲, -5=左輔
 
   // === 暫且簡化輔星（只放天魁天鉞、文昌文曲、擎羊陀羅）===
   // 火星鈴星、地空地劫需要更繁複的對照表，後續再補
@@ -658,46 +639,105 @@
     // --- 5. 安14主星 ---
     var tianfuPos = ((4 - ziweiPos) % 12 + 12) % 12;
     
-    // 各宮主星
+    // 各宮主星（支援雙星同宮）
     var starPositions = {};
-    
-    // 紫微系（從紫微宮逆排，每跳過一個空位下一個星）
-    for (var i = 0; i < 12; i++) starPositions[i] = { main: '', support: [] };
-    
+    for (var i = 0; i < 12; i++) starPositions[i] = { main: [], support: [] };
+
     // 紫微系（0紫微,1天機,3太陽,4武曲,5天同,7廉貞）
+    var ziweiOffsets = [0, -1, -3, -4, -5, -8];
     var ziweiStarIdx = [0, 1, 3, 4, 5, 7];
     for (var si = 0; si < ziweiStarIdx.length; si++) {
-      var pos = ((ziweiPos - si) % 12 + 12) % 12;
-      starPositions[pos].main = ZIWEI_MAIN_STARS[ziweiStarIdx[si]];
-    }
-    
-    // 天府系（8天府,9太陰,10貪狼,11巨門,12天相,13天梁,14七殺,16破軍）
-    var tianfuStarIdx = [8, 9, 10, 11, 12, 13, 14, 16];
-    for (var si = 0; si < tianfuStarIdx.length; si++) {
-      var pos = ((tianfuPos + si) % 12 + 12) % 12;
-      starPositions[pos].main = ZIWEI_MAIN_STARS[tianfuStarIdx[si]];
+      var pos = ((ziweiPos + ziweiOffsets[si]) % 12 + 12) % 12;
+      starPositions[pos].main.push(ZIWEI_MAIN_STARS[ziweiStarIdx[si]]);
     }
 
-    // --- 6. 安輔星（簡化版：天魁天鉞、文昌文曲、擎羊陀羅）---
-    
+    // 天府系（8天府,9太陰,10貪狼,11巨門,12天相,13天梁,14七殺,16破軍）
+    var tianfuOffsets = [0, 1, 2, 3, 4, 5, 6, 10];
+    var tianfuStarIdx = [8, 9, 10, 11, 12, 13, 14, 16];
+    for (var si = 0; si < tianfuStarIdx.length; si++) {
+      var pos = ((tianfuPos + tianfuOffsets[si]) % 12 + 12) % 12;
+      starPositions[pos].main.push(ZIWEI_MAIN_STARS[tianfuStarIdx[si]]);
+    }
+
+    // --- 6. 安輔星 ---
+
     // 天魁天鉞
     var kuiPos = KUI[yearGanIdx];
     var yuePos = YUE[yearGanIdx];
     starPositions[kuiPos].support.push('天魁');
     starPositions[yuePos].support.push('天鉞');
-    
+
     // 文昌文曲
     var wcPos = wenChang(hourIdx);
     var wqPos = wenQu(hourIdx);
     starPositions[wcPos].support.push('文昌');
     starPositions[wqPos].support.push('文曲');
-    
+
     // 擎羊陀羅
     var qyPos = qingYang(yearZhiIdx);
     var tlPos = tuoLuo(yearZhiIdx);
     starPositions[qyPos].support.push('擎羊');
     starPositions[tlPos].support.push('陀羅');
-    
+
+    // 火星鈴星
+    var hxPos = huoXing(yearZhiIdx, hourIdx);
+    var lxPos = lingXing(yearZhiIdx, hourIdx);
+    starPositions[hxPos].support.push('火星');
+    starPositions[lxPos].support.push('鈴星');
+
+    // 祿存
+    var lcPos = LU_CUN[yearGanIdx];
+    starPositions[lcPos].support.push('祿存');
+
+    // 地空地劫
+    var dkPos = diKong(yearZhiIdx);
+    var djPos = diJie(yearZhiIdx);
+    starPositions[dkPos].support.push('地空');
+    starPositions[djPos].support.push('地劫');
+
+    // 左輔右弼
+    var zfPos = zuoFu(month);
+    var ybPos = youBi(month);
+    starPositions[zfPos].support.push('左輔');
+    starPositions[ybPos].support.push('右弼');
+
+    // --- 7. 四化 ---
+    var sihua = SIHUA_BY_GAN[yearGanIdx];
+    var sihuaData = []; // {star: '廉貞', hua: '化祿', pos: 地支索引}
+    var huaNames = ['化祿', '化權', '化科', '化忌'];
+    var huaToSupport = ['祿', '權', '科', '忌'];
+    for (var hi = 0; hi < 4; hi++) {
+      var starIdx = sihua[hi];
+      if (starIdx >= 0) {
+        // 主星四化
+        var starName = ZIWEI_MAIN_STARS[starIdx];
+        // 找到這顆星在哪一宮（main 現在是陣列）
+        for (var si = 0; si < 12; si++) {
+          if (starPositions[si].main.indexOf(starName) !== -1) {
+            starPositions[si].support.push(huaToSupport[hi]);
+            sihuaData.push({star: starName, hua: huaNames[hi], pos: si});
+            break;
+          }
+        }
+      } else {
+        // 輔星四化：-2=文昌, -3=右弼, -4=文曲, -5=左輔
+        var fuStarName = '';
+        if (starIdx === -2) fuStarName = '文昌';
+        else if (starIdx === -3) fuStarName = '右弼';
+        else if (starIdx === -4) fuStarName = '文曲';
+        else if (starIdx === -5) fuStarName = '左輔';
+        if (fuStarName) {
+          for (var si = 0; si < 12; si++) {
+            if (starPositions[si].support.indexOf(fuStarName) !== -1) {
+              starPositions[si].support.push(huaToSupport[hi]);
+              sihuaData.push({star: fuStarName, hua: huaNames[hi], pos: si});
+              break;
+            }
+          }
+        }
+      }
+    }
+
     // --- 建構輸出 ---
     var palData = {};
     for (var i = 0; i < 12; i++) {
@@ -708,7 +748,7 @@
         zhiIdx: zhi,
         gan: TIAN_GAN[palGan[zhi]],
         ganIdx: palGan[zhi],
-        mainStar: starPositions[zhi].main || '',
+        mainStar: starPositions[zhi].main.join(' '),
         supportStars: starPositions[zhi].support,
         isMingGong: zhi === mingGongIdx,
       };
@@ -727,7 +767,8 @@
       tianfuPosition: DI_ZHI[tianfuPos],
       starPositions: starPositions,
       palaces: palData,
-      mainStar: starPositions[mingGongIdx].main || '無主星',
+      sihua: sihuaData,
+      mainStar: starPositions[mingGongIdx].main.join(' ') || '無主星',
       supportStar: starPositions[mingGongIdx].support.join('、'),
       // 保留舊版欄位相容
       mainPosition: ZIWEI_PALACES[0],
