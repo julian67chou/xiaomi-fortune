@@ -388,8 +388,11 @@
     var moon = MOON_NAMES[moonIdx];
 
     // --- 上升星座 ---
-    var hourOffset = HOUR_OFFSET[hour] !== undefined ? HOUR_OFFSET[hour] : 0;
-    var risingIdx = ((day + hourOffset) % 12 + 12) % 12;
+    // 上升每約 2 小時換一個星座，以日出（卯時）為基準
+    // 卯(5-7)→牡羊0, 辰→1, 巳→2, 午→3, 未→4, 申→5,
+    // 酉(17-19)→天秤6, 戌→7, 亥→8, 子→9, 丑→10, 寅→11
+    var risingMap = { 卯: 0, 辰: 1, 巳: 2, 午: 3, 未: 4, 申: 5, 酉: 6, 戌: 7, 亥: 8, 子: 9, 丑: 10, 寅: 11 };
+    var risingIdx = risingMap[hour] !== undefined ? risingMap[hour] : 6;
     var rising = RISING_NAMES[risingIdx];
 
     return {
