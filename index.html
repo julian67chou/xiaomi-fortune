@@ -35,10 +35,18 @@
       <div class="xf-divider"></div>
 
       <form id="xf-form">
-        <div class="xf-form-group">
-          <label class="xf-label" for="xf-name">姓名</label>
-          <input type="text" id="xf-name" class="xf-input" placeholder="你的名字" required>
+        <div class="xf-row">
+          <div class="xf-form-group">
+            <label class="xf-label" for="xf-surname">姓氏</label>
+            <input type="text" id="xf-surname" class="xf-input" placeholder="例如：陳" required>
+          </div>
+          <div class="xf-form-group">
+            <label class="xf-label" for="xf-givenname">名字</label>
+            <input type="text" id="xf-givenname" class="xf-input" placeholder="例如：小明" required>
+          </div>
         </div>
+
+        <p style="text-align:center;font-size:0.8rem;color:#b8a88a;margin:-0.5rem 0 1.5rem">姓名學欄位請填繁體字</p>
 
         <div class="xf-row">
           <div class="xf-form-group">
@@ -112,6 +120,7 @@
       <button class="xf-tab" data-target="xf-tab-ziwei">紫微</button>
       <button class="xf-tab" data-target="xf-tab-life">靈數</button>
       <button class="xf-tab" data-target="xf-tab-renleitu">人類圖</button>
+      <button class="xf-tab" data-target="xf-tab-name">姓名學</button>
       <button class="xf-tab" data-target="xf-tab-astro">占星</button>
       <button class="xf-tab" data-target="xf-tab-divine">塔羅·易經</button>
     </div>
@@ -156,6 +165,16 @@
         <p class="xf-card-subtitle">Human Design</p>
         <div class="xf-card-divider"></div>
         <div id="xf-renleitu-text" class="xf-card-body"></div>
+      </div>
+    </div>
+
+    <!-- 姓名學 -->
+    <div id="xf-tab-name" class="xf-tab-content">
+      <div class="xf-frame xf-card">
+        <h3 class="xf-card-title">姓名學</h3>
+        <p class="xf-card-subtitle">三才五格剖象法</p>
+        <div class="xf-card-divider"></div>
+        <div id="xf-name-text" class="xf-card-body"></div>
       </div>
     </div>
 
@@ -268,7 +287,23 @@ document.addEventListener('DOMContentLoaded', function () {
     return '<div class="xf-hexagram">' + yaoChars + '</div>';
   }
 
-  /* ===== 生命靈數計算 ===== */
+  /* ===== 星座計算（正確日期切換） ===== */
+  function getSunSign (month, day) {
+    // 各星座起始日（month 1-based）
+    var cutoff = [20, 19, 21, 21, 21, 22, 23, 23, 23, 23, 22, 20];
+    var names = ['摩羯','水瓶','雙魚','牡羊','金牛','雙子','巨蟹','獅子','處女','天秤','天蠍','射手'];
+    var idx = day < cutoff[month - 1] ? month - 1 : month;
+    return names[idx % 12];
+  }
+  function getMoonSign (month, day, year) {
+    // 簡化：用年月日加總 mod 12
+    var idx = (year + month + day) % 12;
+    return ['牡羊','金牛','雙子','巨蟹','獅子','處女','天秤','天蠍','射手','摩羯','水瓶','雙魚'][idx];
+  }
+  function getRisingSign (day, lifePath) {
+    var idx = (day + lifePath) % 12;
+    return ['牡羊','金牛','雙子','巨蟹','獅子','處女','天秤','天蠍','射手','摩羯','水瓶','雙魚'][idx];
+  }
   function calcLifePath (year, month, day) {
     var sumDigits = function (n) { return String(n).split('').reduce(function (a, c) { return a + parseInt(c); }, 0); };
     var total = sumDigits(year) + sumDigits(month) + sumDigits(day);
@@ -294,7 +329,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
   /* ===== 表單處理 ===== */
   var form = document.getElementById('xf-form');
-  var nameInput = document.getElementById('xf-name');
+  var surnameInput = document.getElementById('xf-surname');
+  var givennameInput = document.getElementById('xf-givenname');
   var dateInput = document.getElementById('xf-birthday');
   var hourSelect = document.getElementById('xf-hour');
   var placeInput = document.getElementById('xf-place');
@@ -303,14 +339,17 @@ document.addEventListener('DOMContentLoaded', function () {
   form.addEventListener('submit', function (e) {
     e.preventDefault();
 
-    var name = nameInput.value.trim();
+    var surname = surnameInput.value.trim();
+    var givenname = givennameInput.value.trim();
+    var fullName = surname + givenname;
     var dateVal = dateInput.value;
     var hour = hourSelect.value;
     var place = placeInput.value.trim();
     var gender = '';
     genderInputs.forEach(function (g) { if (g.checked) gender = g.value; });
 
-    if (!name) { alert('請輸入你的姓名～'); return; }
+    if (!surname) { alert('請輸入你的姓氏～'); return; }
+    if (!givenname) { alert('請輸入你的名字～'); return; }
     if (!dateVal) { alert('請選擇出生日期～'); return; }
 
     var dateParts = dateVal.split('-').map(Number);
@@ -326,7 +365,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     window.xfResult = {
-      name: name,
+      name: fullName,
+      surname: surname,
+      givenname: givenname,
       birthDate: dateVal,
       hour: hourText,
       place: place || '未知',
@@ -388,6 +429,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('xf-bazi-text').innerHTML = generateBaziReading(d);
     document.getElementById('xf-ziwei-text').innerHTML = generateZiweiReading(d);
     document.getElementById('xf-renleitu-text').innerHTML = generateRenleituReading(d);
+    document.getElementById('xf-name-text').innerHTML = generateNameScience(d);
     document.getElementById('xf-astrology-text').innerHTML = generateAstrologyReading(d);
     document.getElementById('xf-summary-body').innerHTML = generateSummary(d);
 
@@ -456,6 +498,115 @@ document.addEventListener('DOMContentLoaded', function () {
     return '<p>你的類型：<strong>' + type + '</strong></p><p>' + typeDesc + '</p><p>定義通道：<strong>' + channel + '</strong>。這條通道賦予你與眾不同的天賦，是你與生俱來的能量流動方式。</p><p>人生策略：' + strategy + '。' + authority + '</p>';
   }
 
+  /* ===== 姓名學：三才五格剖象法 ===== */
+  function getStrokes (char) {
+    var strokes = {
+      '一':1,'二':2,'三':3,'四':5,'五':4,'六':4,'七':2,'八':2,'九':2,'十':2,
+      '大':3,'小':3,'天':4,'地':6,'人':2,'山':3,'水':4,'火':4,'日':4,'月':4,'木':4,'金':8,'土':3,'石':5,'風':9,'雷':13,'光':6,
+      '上':3,'下':3,'中':4,'東':8,'南':9,'西':6,'北':5,'前':9,'後':9,
+      '春':9,'夏':10,'秋':9,'冬':5,'明':8,'暗':13,'星':9,'雲':12,'雨':8,'雪':11,'海':10,'河':8,'江':6,'湖':12,
+      '王':4,'子':3,'美':9,'德':15,'志':7,'信':9,'義':13,'仁':4,'禮':18,'智':12,'勇':9,'誠':14,'善':12,'真':10,
+      '國':11,'家':10,'安':6,'平':5,'樂':15,'和':8,'福':13,'祿':12,'壽':14,'喜':12,
+      '文':4,'武':8,'英':8,'雄':12,'偉':11,'傑':12,'豪':14,'俊':9,'彥':9,'彬':11,
+      '嘉':14,'慶':15,'賢':15,'良':7,'恭':10,'儉':9,'讓':24,
+      '上':3,'中':4,'下':3,'正':5,'直':8,'方':4,'圓':13,'白':5,'青':8,'紅':9,'藍':18,'黃':12,'綠':14,'黑':12,'紫':11,
+      '林':8,'葉':12,'森':12,'柏':9,'松':8,'竹':6,'梅':11,'蘭':23,'菊':14,'荷':13,'蓮':14,'華':12,
+      '龍':16,'鳳':14,'麟':23,'龜':16,'馬':10,'牛':4,'虎':8,'兔':8,'蛇':11,
+      '陳':11,'林':8,'黃':12,'張':11,'李':7,'王':4,'吳':7,'劉':15,'蔡':17,'楊':13,'許':11,'謝':17,'曾':13,'鄭':19,'周':8,
+      '吳':7,'徐':10,'孫':10,'馬':10,'朱':6,'胡':9,'郭':15,'何':7,'高':10,'羅':20,'梁':11,'宋':7,'鄭':19,'謝':17,'韓':17,
+      '唐':10,'馮':12,'于':3,'董':15,'蕭':19,'程':12,'曹':11,'袁':10,'鄧':19,'許':11,'傅':12,'沈':8,'曾':13,'彭':12,'呂':7,
+      '蘇':22,'盧':16,'蔣':17,'魏':18,'賈':13,'丁':2,'江':6,'范':11,'鍾':17,'田':5,'石':5,'任':6,'姚':9,'康':11,'顧':21,
+      '方':4,'廖':14,'鄒':17,'熊':14,'金':8,'陸':13,'郝':14,'孔':4,'白':5,'崔':11,'毛':4,'邱':12,'秦':10,'汪':7,'史':5,
+      '舒':12,'柯':9,'章':11,'詹':13,'卓':8,'葉':12,'賀':12,'倪':10,'施':9,'姜':9,'侯':9,'邵':12,'焦':12,'雷':13,'錢':16,
+      '顏':18,'賴':16,'邱':12,'柳':9,'洪':10,'溫':13,'夏':10,'宋':7,'官':8,'萬':12,'段':9,'康':11,'連':14,'游':13,'童':12,
+      '翁':10,'康':11,'祝':10,'簡':18,'卜':2,'關':19,'紀':9,'屈':8,'岳':8,'聶':18,'文':4,'古':5,'甘':5,'卞':4,'白':5
+    };
+    return strokes[char] !== undefined ? strokes[char] : null;
+  }
+
+  function generateNameScience (d) {
+    var s = d.surname;
+    var g = d.givenname;
+    var sStrokes = [];
+    var gStrokes = [];
+    var missing = [];
+
+    for (var i = 0; i < s.length; i++) {
+      var st = getStrokes(s[i]);
+      if (st !== null) sStrokes.push(st);
+      else missing.push(s[i]);
+    }
+    for (var j = 0; j < g.length; j++) {
+      var gt = getStrokes(g[j]);
+      if (gt !== null) gStrokes.push(gt);
+      else missing.push(g[j]);
+    }
+
+    if (missing.length > 0) {
+      return '<p>姓名學筆畫查詢中，以下字不在此版本對照表中：<strong>' + missing.join('、') + '</strong></p><p style="color:#b8a88a;font-size:0.85rem">（姓名學功能將在後續版本擴充字庫）</p>';
+    }
+
+    var totalSurname = sStrokes.reduce(function (a, b) { return a + b; }, 0);
+    var totalGiven = gStrokes.reduce(function (a, b) { return a + b; }, 0);
+    var totalAll = totalSurname + totalGiven;
+
+    // 天格：姓+1（單姓）
+    var tianGe = totalSurname + 1;
+    // 人格：姓末+名首
+    var renGe = sStrokes[sStrokes.length - 1] + gStrokes[0];
+    // 地格：名總（單名+1）
+    var diGe = gStrokes.length === 1 ? totalGiven + 1 : totalGiven;
+    // 外格：總格-人格+1
+    var waiGe = totalAll - renGe + 1;
+    // 總格
+    var zongGe = totalAll;
+
+    function wuxingAttr (num) {
+      var last = num % 10;
+      if (last === 1 || last === 2) return { wu: '木', color: '#4a7c59' };
+      if (last === 3 || last === 4) return { wu: '火', color: '#c23b22' };
+      if (last === 5 || last === 6) return { wu: '土', color: '#b8860b' };
+      if (last === 7 || last === 8) return { wu: '金', color: '#9a8c6f' };
+      return { wu: '水', color: '#3a6b8c' };
+    }
+
+    var tian = wuxingAttr(tianGe);
+    var ren = wuxingAttr(renGe);
+    var di = wuxingAttr(diGe);
+    var wai = wuxingAttr(waiGe);
+    var zong = wuxingAttr(zongGe);
+
+    // 三才配置：天人格、天地格、人地格
+    var shengKe = {
+      '木木木': '大吉','木木火': '吉','木木土': '吉','木火火': '吉','木火土': '吉',
+      '火火火': '吉','火火木': '吉','火火土': '吉','火土土': '吉','火土金': '吉',
+      '土土土': '吉','土土火': '吉','土土金': '吉','土金金': '吉','土金水': '吉',
+      '金金金': '吉','金金水': '吉','金水水': '吉','金水木': '吉',
+      '水水水': '吉','水水木': '吉','水木木': '吉','水木火': '吉'
+    };
+    var sanCai = (tian.wu + ren.wu + di.wu);
+    var sanCaiResult = shengKe[sanCai] || '平';
+
+    function fiveGrade (num) {
+      var g = num % 10;
+      if (g >= 8 || g === 1 || g === 3 || g === 5) return '吉';
+      if (g === 2 || g === 4) return '凶';
+      return '平';
+    }
+
+    return '<p><strong>' + d.surname + d.givenname + '</strong> 三才五格分析：</p>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:0.9rem;margin:0.5rem 0">' +
+      '<tr style="border-bottom:1px solid #c4a97d"><td style="padding:4px 8px;font-weight:600">格位</td><td style="padding:4px 8px">筆畫</td><td style="padding:4px 8px">五行</td><td style="padding:4px 8px">吉凶</td></tr>' +
+      '<tr><td style="padding:4px 8px">天格</td><td style="padding:4px 8px">' + tianGe + '</td><td style="padding:4px 8px;color:' + tian.color + '">' + tian.wu + '</td><td style="padding:4px 8px">' + fiveGrade(tianGe) + '</td></tr>' +
+      '<tr><td style="padding:4px 8px">人格</td><td style="padding:4px 8px">' + renGe + '</td><td style="padding:4px 8px;color:' + ren.color + '">' + ren.wu + '</td><td style="padding:4px 8px">' + fiveGrade(renGe) + '</td></tr>' +
+      '<tr><td style="padding:4px 8px">地格</td><td style="padding:4px 8px">' + diGe + '</td><td style="padding:4px 8px;color:' + di.color + '">' + di.wu + '</td><td style="padding:4px 8px">' + fiveGrade(diGe) + '</td></tr>' +
+      '<tr><td style="padding:4px 8px">外格</td><td style="padding:4px 8px">' + waiGe + '</td><td style="padding:4px 8px;color:' + wai.color + '">' + wai.wu + '</td><td style="padding:4px 8px">' + fiveGrade(waiGe) + '</td></tr>' +
+      '<tr><td style="padding:4px 8px">總格</td><td style="padding:4px 8px">' + zongGe + '</td><td style="padding:4px 8px;color:' + zong.color + '">' + zong.wu + '</td><td style="padding:4px 8px">' + fiveGrade(zongGe) + '</td></tr>' +
+      '</table>' +
+      '<p><strong>三才配置</strong>：天' + tian.wu + '·人' + ren.wu + '·地' + di.wu + ' — <span style="color:' + (sanCaiResult === '吉' || sanCaiResult === '大吉' ? '#4a7c59' : '#c23b22') + '">' + sanCaiResult + '</span></p>' +
+      '<p style="font-size:0.85rem;color:var(--xf-ink-light)">三才配置看天人地的五行生剋關係，吉者主運勢順遂，平者需後天努力補足，凶者宜改名或以此警惕。</p>';
+  }
+
   function generateAstrologyReading (d) {
     var signs = ['牡羊座', '金牛座', '雙子座', '巨蟹座', '獅子座', '處女座', '天秤座', '天蠍座', '射手座', '摩羯座', '水瓶座', '雙魚座'];
     var sunAdj = ['熱情奔放','踏實穩固','靈活多變','溫柔敏感','自信耀眼','細膩完美','平衡和諧','深沉強烈','樂觀自由','務實堅毅','前衛獨立','浪漫包容'];
@@ -464,17 +615,17 @@ document.addEventListener('DOMContentLoaded', function () {
     var houses = ['一宮（自我）', '二宮（財帛）', '三宮（溝通）', '四宮（家庭）',
       '五宮（愛情）', '六宮（健康）', '七宮（伴侶）', '八宮（轉化）',
       '九宮（遠行）', '十宮（事業）', '十一宮（人際）', '十二宮（潛意識）'];
-    var sunIdx = (d.month - 1 + Math.floor(d.day / 20)) % 12;
-    var moonIdx = (d.year + d.month) % 12;
-    var risingIdx = (d.day + d.lifePathNum) % 12;
+    var sunSign = getSunSign(d.month, d.day);
+    var moonSign = getMoonSign(d.month, d.day, d.year);
+    var risingSign = getRisingSign(d.day, d.lifePathNum);
     var planetDesc;
     if (d.lifePathNum % 3 === 0) {
-      planetDesc = '多星聚集在' + houses[sunIdx % 12] + '，該領域是你此生的重點。';
+      planetDesc = '多星聚集在某幾個宮位，該領域是你此生的重點。';
     } else {
       planetDesc = '行星分布均勻，各方面發展平衡。';
     }
     var jupiterDesc = d.lifePathNum % 2 === 0 ? '帶來好運與擴張' : '需要努力才能獲得回報';
-    return '<p><strong>太陽</strong>：' + signs[sunIdx] + ' — 你的核心自我。' + sunAdj[sunIdx] + '</p><p><strong>月亮</strong>：' + signs[moonIdx] + ' — 你的內在情緒。' + moonAdj[moonIdx] + '而需要安全感。</p><p><strong>上升</strong>：' + signs[risingIdx] + ' — 你給人的第一印象。' + risingAdj[risingIdx] + '</p><p>重要行星分布：' + planetDesc + '木星在' + houses[(d.year + d.lifePathNum) % 12] + '，' + jupiterDesc + '。</p>';
+    return '<p><strong>太陽</strong>：' + sunSign + '座 — 你的核心自我。</p><p><strong>月亮</strong>：' + moonSign + '座 — 你的內在情緒。</p><p><strong>上升</strong>：' + risingSign + '座 — 你給人的第一印象。</p><p>重要行星分布：' + planetDesc + '木星在' + houses[(d.year + d.lifePathNum) % 12] + '，' + jupiterDesc + '。</p>';
   }
 
   function generateSummary (d) {
@@ -482,9 +633,9 @@ document.addEventListener('DOMContentLoaded', function () {
     var talent = ['行動力','穩定性','適應力','情感深度','創造力','分析力','公正感','洞察力','探索欲','耐力','獨立性','直覺力'];
     var types = ['顯示者','生產者','顯示生產者','投射者','反映者'];
     var stars = ['紫微','天機','太陽','武曲','天同','廉貞','天府','太陰','貪狼','巨門','天相','天梁','七殺','破軍'];
-    var sunIdx = (d.month - 1 + Math.floor(d.day / 20)) % 12;
+    var sunSign = getSunSign(d.month, d.day);
     var nature = d.lifePathNum % 2 === 0 ? '善於整合、富有同理心' : '具有開創精神、行動力強';
-    return '<p>親愛的 <strong>' + d.name + '</strong>，綜合你提供的生辰資訊，小彌為你梳理了以下幾點：</p><p>你的<strong>生命靈數 ' + d.lifePathNum + '</strong> 與八字日主呼應，顯示你是一個' + nature + '的人。占星盤中太陽' + signsShort[sunIdx] + '座賦予你' + talent[d.lifePathNum % 12] + '的天賦。</p><p>人類圖中你屬於' + types[d.lifePathNum % 5] + '類型，這與紫微' + stars[d.lifePathNum % 14] + '坐命的格局互相印證——你不是偶然來到這個世界的。</p><p>這次為你抽到的塔羅牌是<strong>「' + d.tarotCard.name + '」</strong>：' + d.tarotCard.meaning + '</p><p>\u{1F52E} <strong>小彌的話</strong>：命理是地圖，不是目的地。這些符號只是幫你看見自己本來就有的樣子。你比你以為的更完整。</p>';
+    return '<p>親愛的 <strong>' + d.name + '</strong>，綜合你提供的生辰資訊，小彌為你梳理了以下幾點：</p><p>你的<strong>生命靈數 ' + d.lifePathNum + '</strong> 與八字日主呼應，顯示你是一個' + nature + '的人。占星盤中太陽' + sunSign + '座賦予你' + talent[d.lifePathNum % 12] + '的天賦。</p><p>人類圖中你屬於' + types[d.lifePathNum % 5] + '類型，這與紫微' + stars[d.lifePathNum % 14] + '坐命的格局互相印證——你不是偶然來到這個世界的。</p><p>這次為你抽到的塔羅牌是<strong>「' + d.tarotCard.name + '」</strong>：' + d.tarotCard.meaning + '</p><p>\u{1F52E} <strong>小彌的話</strong>：命理是地圖，不是目的地。這些符號只是幫你看見自己本來就有的樣子。你比你以為的更完整。</p>';
   }
 
   /* ===== Tabs ===== */
