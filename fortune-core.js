@@ -39,6 +39,54 @@
   const MONTH_ZHI_INDEX = [null, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1];
   // month 1=寅(2), 2=卯(3), ..., 11=子(0), 12=丑(1)
 
+  // 節氣日期（近似值，用於八字月柱計算）
+  // 每個節氣在該月的近似日：立春、驚蟄、清明、立夏、芒種、小暑、
+  // 立秋、白露、寒露、立冬、大雪、小寒
+  const JIE_QI_DAY = [4, 6, 5, 6, 6, 7, 7, 7, 8, 7, 7, 6];
+  // 對應月份: 2月立春(4), 3月驚蟄(6), 4月清明(5), 5月立夏(6),
+  //           6月芒種(6), 7月小暑(7), 8月立秋(7), 9月白露(7),
+  //           10月寒露(8), 11月立冬(7), 12月大雪(7), 1月小寒(6)
+
+  /**
+   * 根據節氣決定月地支
+   * @param {number} year
+   * @param {number} month - 1-based
+   * @param {number} day
+   * @returns {number} 地支索引（寅=2, 卯=3, ..., 丑=1）
+   */
+  function getMonthZhiByJieQi(year, month, day) {
+    // 以立春（寅月=索引2）為正月起點
+    // 月份順序：寅(2)卯(3)辰(4)巳(5)午(6)未(7)申(8)酉(9)戌(10)亥(11)子(0)丑(1)
+    // 節氣對應：立春(2月)→驚蟄(3月)→清明(4月)→立夏(5月)→芒種(6月)→...
+    // 但白露(9月)→寒露(10月)→立冬(11月)→大雪(12月)→小寒(1月)→立春(2月)
+
+    // JIE_QI_DAY 索引 0=2月立春, 1=3月驚蟄, ..., 10=12月大雪, 11=1月小寒
+    // 月地支從立春(2月)開始為寅(2)
+
+    // 如果是1月：先看是否在小寒之後(農曆十二月=丑)
+    if (month === 1) {
+      if (day >= JIE_QI_DAY[11]) { // 1月6日後 = 丑月(索引1)
+        return 1;
+      } else { // 1月6日前 = 還是前一年的子月(索引0)
+        return 0;
+      }
+    }
+
+    // 其他月份：看是否到了該月的節氣
+    // 2月立春(索引0) → 寅(2)
+    // 3月驚蟄(索引1) → 卯(3)
+    // ...
+    // 12月大雪(索引10) → 子(0)
+    var monthOffset = month - 2; // 2月=0, 3月=1, ..., 12月=10
+    // 2月4日後 = 寅(2)，之前 = 丑(1)
+    if (day >= JIE_QI_DAY[monthOffset]) {
+      return monthOffset + 2; // 2月→2(寅), 3月→3(卯), ..., 12月→12 → 取mod
+    } else {
+      // 還沒到節氣 → 上個月的月地支
+      return monthOffset + 1; // 2月→1(丑), 3月→2(寅), ..., 12月→11(亥)
+    }
+  }
+
   // 五虎遁（年上起月法）：年天干索引 -> [正月天干, 二月天干, ...]
   const WU_HU_DUN = {
     // 甲己之年丙作首
@@ -163,36 +211,39 @@
    */
   function calcBazi(year, month, day, hour) {
     // --- 年柱 ---
-    var yearGanIdx = ((year % 10) + 10) % 10;
-    var yearZhiIdx = ((year % 12) + 12) % 12;
-    // 生肖用 yearZhiIdx 直接對應：0=子=鼠, 1=丑=牛, ...
-    // 但 SHENG_XIAO 的 key 是 0=猴（因為農曆生肖以立春為界，此處簡化用年地支）
+    // 年柱以立春為界，簡化處理：1/1~立春前的年柱還是前一年的
+    var baseYear = year;
+    if (month === 1 && day < JIE_QI_DAY[11]) {
+      baseYear = year - 1; // 1月6日前→前一年
+    }
+    var yearGanIdx = ((baseYear - 4) % 10 + 10) % 10;
+    var yearZhiIdx = ((baseYear - 4) % 12 + 12) % 12;
     var zodiacIdx = yearZhiIdx; // 子0=鼠，直接對應
-
     var yearGan  = TIAN_GAN[yearGanIdx];
     var yearZhi  = DI_ZHI[yearZhiIdx];
     var yearGanzhi = yearGan + yearZhi;
 
-    // --- 月柱 ---
-    var monthZhiIdx = MONTH_ZHI_INDEX[month];
+    // --- 月柱（用節氣決定）---
+    var monthZhiIdx = getMonthZhiByJieQi(year, month, day);
     var monthZhi = DI_ZHI[monthZhiIdx];
-    var monthGanIdx = WU_HU_DUN[yearGanIdx][month - 1];
+    // 五虎遁：以寅月(索引2)為正月(=0)，所以要轉換
+    var lunarMonthIdx = ((monthZhiIdx - 2) % 12 + 12) % 12; // 寅=0, 卯=1, ..., 丑=11
+    var monthGanIdx = WU_HU_DUN[yearGanIdx][lunarMonthIdx];
     var monthGan = TIAN_GAN[monthGanIdx];
     var monthGanzhi = monthGan + monthZhi;
 
     // --- 日柱（基準日偏移法）---
-    // 基準：2000年1月1日 = 甲戌日
-    // 甲 = 天干索引 0，戌 = 地支索引 10
-    var baseDate = new Date(2000, 0, 1); // Jan 1, 2000
+    // 基準：2000年1月1日 = 甲午日（天干0=甲，地支6=午）
+    var baseDate = new Date(2000, 0, 1);
     var targetDate = new Date(year, month - 1, day);
 
     // 計算天數差
     var diff = Math.round((targetDate - baseDate) / 86400000);
 
-    // 日天干 = (diff % 10 + 10) % 10，但要加基準偏移（基準日甲=0）
-    var dayGanIdx = ((diff % 10) + 10) % 10;
-    // 日地支 = ((diff + 10) % 12 + 12) % 12，基準日戌=10
-    var dayZhiIdx = ((diff + 10) % 12 + 12) % 12;
+    // 日天干 = ((基準天干 + diff) % 10 + 10) % 10
+    var dayGanIdx = ((0 + diff) % 10 + 10) % 10;
+    // 日地支 = ((基準地支 + diff) % 12 + 12) % 12
+    var dayZhiIdx = ((6 + diff) % 12 + 12) % 12;
 
     var dayGan  = TIAN_GAN[dayGanIdx];
     var dayZhi  = DI_ZHI[dayZhiIdx];
