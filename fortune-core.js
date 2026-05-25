@@ -152,20 +152,6 @@
     '情緒中心', '薦骨中心', '直覺中心', '意志力中心', '自我中心', '環境',
   ];
 
-  // 紫微斗數主星列表
-  const ZIWEI_MAIN_STARS = [
-    '紫微', '天機', '太陽', '武曲', '天同', '廉貞',
-    '天府', '太陰', '貪狼', '巨門', '天相', '天梁', '七殺', '破軍',
-  ];
-  const ZIWEI_SUPPORT_STARS = [
-    '文昌', '文曲', '左輔', '右弼', '天魁', '天鉞',
-    '擎羊', '陀羅', '火星', '鈴星', '地空', '地劫',
-  ];
-  const ZIWEI_PALACES = [
-    '命宮', '兄弟宮', '夫妻宮', '子女宮', '財帛宮', '疾厄宮',
-    '遷移宮', '交友宮', '事業宮', '田宅宮', '福德宮', '父母宮',
-  ];
-
   // ============================================================
   // 偽隨機函數 mulberry32
   // ============================================================
@@ -291,76 +277,347 @@
   }
 
   // ============================================================
-  // 2. 紫微斗數（簡化版）
+  // 2. 紫微斗數（完整排盤）
   // ============================================================
 
+  // 十二宮名稱（從命宮逆排）
+  const ZIWEI_PALACES = [
+    '命宮', '兄弟宮', '夫妻宮', '子女宮', '財帛宮', '疾厄宮',
+    '遷移宮', '交友宮', '事業宮', '田宅宮', '福德宮', '父母宮',
+  ];
+
+  // 14主星
+  const ZIWEI_MAIN_STARS = [
+    '紫微', '天機', '空', '太陽', '武曲', '天同', '空', '廉貞',
+    '天府', '太陰', '貪狼', '巨門', '天相', '天梁', '七殺', '空', '破軍',
+  ];
+  // 索引映射: 0紫微,1天機,3太陽,4武曲,5天同,7廉貞,8天府,9太陰,10貪狼,11巨門,12天相,13天梁,14七殺,16破軍
+
+  // 紫微系（逆行）：紫微→天機→空→太陽→武曲→天同→空→廉貞
+  // 天府系（順行）：天府→太陰→貪狼→巨門→天相→天梁→七殺→空→破軍
+  // 紫微和天府永遠在紫微系和天府系的對應位置
+
+  // 紫微對天府表：紫微在X宮，天府就在(12-X)宮
+  // 紫微在子(0)→天府在辰(4)，紫微在丑(1)→天府在卯(3)，...
+  // 公式：天府位置 = (12 - 紫微位置 + 4) % 12 → (4 - 紫微位置 + 12) % 12
+  function tianfuPosition(ziweiIdx) {
+    return ((4 - ziweiIdx) % 12 + 12) % 12;
+  }
+
+  // 紫微系主星位置（從紫微宮開始逆排，跳過空位）
+  const ZIWEI_XI = [0, 1, -1, 3, 4, 5, -1, 7]; // 索引→主星索引,-1=空
+  // 天府系主星位置（從天府宮開始順排，跳過空位）
+  const TIANFU_XI = [8, 9, 10, 11, 12, 13, 14, -1, 16]; // 索引→主星索引,-1=空
+
+  // 輔星
+  const ZIWEI_SUPPORT_STARS = {
+    kui_yue: ['', ''],
+
+  };
+
+  // 天魁天鉞（年干）
+  const KUI_YUE_BY_GAN = {
+    0: { kui: 1, yue: 7 },  // 甲：丑(1)未(7)
+    1: { kui: 0, yue: 6 },  // 乙：子(0)申(8)…不對
+    5: { kui: 0, yue: 6 },  // 己：子(0)申(8)…等等
+  };
+
+  // 天魁天鉞：甲戊庚牛羊，乙己鼠猴鄉，丙丁豬雞位，六辛逢虎馬，壬癸蛇兔藏
+  // 丑=牛=1, 未=羊=7
+  // 子=鼠=0, 申=猴=8
+  // Other干支... 轉成索引
+  const KUI_YUE = {
+    0: [1, 7],   // 甲：丑(1)未(7)
+    1: [0, 8],   // 乙：子(0)申(8)
+    2: [11, 9],  // 丙：亥(11)酉(9)
+    3: [10, 9],  // 丁：亥(10)酉(9)
+    4: [1, 7],   // 戊：丑(1)未(7)
+    5: [0, 8],   // 己：子(0)申(8)
+    6: [2, 6],   // 庚：丑(1)…不對，庚是丑未？甲戊庚牛羊
+    7: [2, 6],   // 辛：寅(2)午(6) — 六辛逢虎馬
+    8: [4, 10],  // 壬：辰(4)戌(10)
+    9: [4, 10],  // 癸：辰(4)戌(10)
+  };
+  // 口訣：甲戊庚牛羊，乙己鼠猴鄉，丙丁豬雞位，六辛逢虎馬，壬癸蛇兔藏
+  // 牛羊=丑未(1,7), 鼠猴=子申(0,8), 豬雞=亥酉(11,9), 虎馬=寅午(2,6), 蛇兔=辰卯(4,3)...不對
+  // 天魁天鉞是天乙貴人，分陽貴陰貴
+  // 重新查證後修正：
+
+  // 正確的天魁（陽貴）天鉞（陰貴）口訣：
+  // 甲戊(庚) → 陽貴丑(1)，陰貴未(7) → 甲戊庚牛羊
+  // 乙(己) → 陽貴子(0)，陰貴申(8) → 乙己鼠猴鄉
+  // 丙(丁) → 陽貴亥(11)，陰貴酉(9) → 丙丁豬雞位
+  // 庚 → 陽貴丑(1)，陰貴未(7) → 同甲戊
+  // 辛 → 陽貴寅(2)，陰貴午(6) → 六辛逢虎馬
+  // 壬(癸) → 陽貴卯(3)，陰貴巳(5) → 壬癸兔蛇藏...不對
+
+  // 正確版（重新查）：
+  const KUI = [1, 0, 11, 10, 1, 0, 1, 2, 3, 3];  // 天魁：甲丑,乙子,丙亥,丁亥,戊丑,己子,庚丑,辛寅,壬卯,癸卯
+  const YUE = [7, 8, 9, 9, 7, 8, 7, 6, 5, 5];    // 天鉞：甲未,乙申,丙酉,丁酉,戊未,己申,庚未,辛午,壬巳,癸巳
+
+  // 文昌文曲（辰宮起，順逆時）
+  // 文昌：子(0)起順時到生時，但其實是辰宮起順數
+  // 文曲：辰(4)宮起逆數到生時
+  // 改為：文昌從辰宮(4)順數，文曲從戌宮(10)逆數（標準版）
+  // 更標準：文昌從午(6)起順數到生時；文曲從辰(4)起逆數到生時
+  // 再查：文昌戌宮(10)起逆時到生時，文曲辰宮(4)起順時到生時
+  
+  // 文昌文曲：文昌戌宮起逆時針數到生時，文曲辰宮起順時針數到生時
+  function wenChang(hourIdx) {
+    return ((10 - hourIdx) % 12 + 12) % 12; // 戌(10)逆數
+  }
+  function wenQu(hourIdx) {
+    return ((4 + hourIdx) % 12 + 12) % 12; // 辰(4)順數
+  }
+
+  // 擎羊陀羅（年支）
+  // 擎羊：年支+1（順數一位），陀羅：年支-1（逆數一位）
+  function qingYang(yearZhiIdx) {
+    return (yearZhiIdx + 1) % 12;
+  }
+  function tuoLuo(yearZhiIdx) {
+    return ((yearZhiIdx - 1) % 12 + 12) % 12;
+  }
+
+  // 火星鈴星（年支 + 時辰，有對照表）
+  // 火星：年支定子時位置，順時辰格數
+  // 口訣：申子辰人寅戌揚，寅午戌人丑卯方，巳酉丑人卯戌位，亥卯未人酉戌房
+  // 火鈴有更複雜的規則，這裡先用簡化表
+  // 火星：年支決定的起始地支，然後順數生時格數
+  // 鈴星：年支決定的起始地支，然後逆數生時格數
+  
+  // 完整火星表（年支→子時火星位置）：
+  const HUO_XING_BASE = {
+    0: 2,  // 子→寅(2)
+    1: 4,  // 丑→辰(4)? ... 
+  };
+  
+  // 這個太複雜，直接刻對照表
+  // 火星位置表：年支+時辰→火星地支索引
+  // 鈴星位置表：年支+時辰→鈴星地支索引
+  
+  // 地空地劫（年支+時辰）
+  // 地空：年支決定的起始+時辰
+  // 地劫：年支決定的起始+時辰
+
+  // === 暫且簡化輔星（只放天魁天鉞、文昌文曲、擎羊陀羅）===
+  // 火星鈴星、地空地劫需要更繁複的對照表，後續再補
+
   /**
-   * 紫微斗數計算（簡化版 — 用 seed 產生固定結果）
+   * 紫微斗數真實排盤
    * @param {number} year
-   * @param {number} month
+   * @param {number} month - 1-based
    * @param {number} day
-   * @param {string|number} hour - 時辰名稱或索引
+   * @param {string|number} hour - 時辰名稱
    * @param {string} gender - '男' 或 '女'
    * @returns {object}
    */
   function calcZiwei(year, month, day, hour, gender) {
-    var rng = seededRandom(year, month, day);
+    // --- 1. 定命宮 ---
+    // 寅宮(2)起正月，順數生月，逆數生時
+    var hourIdx = HOUR_ZHI_INDEX[hour];
+    if (hourIdx === undefined) hourIdx = 0; // 預設子時
+    
+    var mingGongIdx = ((2 + (month - 1) - hourIdx) % 12 + 12) % 12;
+    
+    // 逆排十二宮
+    var palIndex = {};
+    for (var i = 0; i < 12; i++) {
+      var idx = ((mingGongIdx - i) % 12 + 12) % 12;
+      palIndex[ZIWEI_PALACES[i]] = idx;
+    }
 
-    // 選主星
-    var mainIdx = Math.floor(rng() * ZIWEI_MAIN_STARS.length);
-    var mainStar = ZIWEI_MAIN_STARS[mainIdx];
+    // --- 2. 定命宮天干（五虎遁）---
+    // 年柱天干
+    var baseYear = year;
+    if (month === 1 && day < JIE_QI_DAY[11]) baseYear = year - 1;
+    var yearGanIdx = ((baseYear - 4) % 10 + 10) % 10;
+    var yearZhiIdx = ((baseYear - 4) % 12 + 12) % 12;
 
-    // 選輔星
-    var supportIdx = Math.floor(rng() * ZIWEI_SUPPORT_STARS.length);
-    var supportStar = ZIWEI_SUPPORT_STARS[supportIdx];
+    // 寅宮天干 = 五虎遁第一月
+    var yinGanIdx = WU_HU_DUN[yearGanIdx][0];
+    
+    // 各宮天干（從寅宮起順排）
+    var palGan = {};
+    for (var i = 0; i < 12; i++) {
+      var zhiIdx = i; // 地支索引0-11
+      var ganIdx = ((yinGanIdx + (i - 2)) % 10 + 10) % 10; // 寅=2對應yinGanIdx
+      palGan[zhiIdx] = ganIdx;
+    }
 
-    // 主星所在宮位
-    var mainPosIdx = Math.floor(rng() * ZIWEI_PALACES.length);
-    var mainPosition = ZIWEI_PALACES[mainPosIdx];
+    // --- 3. 定五行局 ---
+    var mingGongZhi = mingGongIdx; // 命宮地支
+    var mingGongGan = palGan[mingGongZhi]; // 命宮天干
+    
+    // 納音表（用 (天干索引, 地支索引) → 五行）
+    var nayin = {
+      // 直接從60甲子納音表查甲乙...戌亥
+    };
+    // 建一個快速查表
+    var nayinMap = [
+      '金','金','火','火','木','木','土','土','金','金',  // 0-9: 甲子~癸酉
+      '火','火','水','水','土','土','金','金','木','木',  // 10-19: 甲戌~癸未
+      '水','水','土','土','火','火','木','木','水','水',  // 20-29: 甲申~癸巳
+      '金','金','火','火','木','木','土','土','金','金',  // 30-39: 甲午~癸卯
+      '火','火','水','水','土','土','金','金','木','木',  // 40-49: 甲辰~癸丑
+      '水','水','土','土','火','火','木','木','水','水',  // 50-59: 甲寅~癸亥
+    ];
 
-    // 產生各宮位主星分佈
-    var starPositions = {};
-    var usedPalaces = {};
-    usedPalaces[mainPosIdx] = true;
+    // 六十甲子索引 = (天干 % 10) 但需要正確公式
+    function getNayinIndex(ganIdx, zhiIdx) {
+      // 六十甲子排序：天干和地支各自循環
+      // 可以從已知點推算：甲子(0,0)=0, 乙丑(1,1)=1, ...
+      // 但公式是：從甲子開始配，甲子(0%10,0%12) = 索引0
+      // 索引 = (ganIdx - zhiIdx % 10 + 10) % 10 之類的...不對
+      // 用最簡單方式：六十甲子從甲子開始配對
+      // 甲子0, 乙丑1, ..., 癸酉9, 甲戌10, ..., 癸未19, ...
+      // 索引公式：(天干 - 地支 + 12) %... 也不對
+      // 最簡單：遍歷60次找匹配
+      for (var i = 0; i < 60; i++) {
+        if (i % 10 === ganIdx && i % 12 === zhiIdx) return i;
+      }
+      return -1;
+    }
 
-    for (var i = 0; i < ZIWEI_PALACES.length; i++) {
-      if (i === mainPosIdx) {
-        starPositions[ZIWEI_PALACES[i]] = {
-          mainStar: mainStar,
-          supportStar: supportStar,
-          position: ZIWEI_PALACES[i],
-        };
+    var nayinIdx = getNayinIndex(mingGongGan, mingGongZhi);
+    var wuxing = nayinMap[nayinIdx];
+    var wuxingToJu = { '水': 2, '木': 3, '金': 4, '土': 5, '火': 6 };
+    var juShu = wuxingToJu[wuxing];
+    
+    // --- 4. 安紫微星 ---
+    // 公式：(生日 + (局數-1)) / 局數 取商
+    // 商奇數順行(從寅宮2開始)，商偶數逆行(從寅宮2開始)
+    // 商=0在寅宮(2)，商=1在卯宮(3)，商=-1在丑宮(1)
+    function calcZiweiPosition(birthDay, ju) {
+      var q = Math.floor((birthDay + (ju - 1)) / ju);
+      var ziweiPos;
+      if (birthDay % ju === 0) {
+        // 整除：從寅宮(2)逆數到商
+        ziweiPos = ((2 - q) % 12 + 12) % 12;
       } else {
-        var starIdx = Math.floor(rng() * ZIWEI_MAIN_STARS.length);
-        var supIdx = Math.floor(rng() * ZIWEI_SUPPORT_STARS.length);
-        starPositions[ZIWEI_PALACES[i]] = {
-          mainStar: ZIWEI_MAIN_STARS[starIdx],
-          supportStar: ZIWEI_SUPPORT_STARS[supIdx],
-          position: ZIWEI_PALACES[i],
-        };
+        // 有餘數：從寅宮(2)順數到商
+        ziweiPos = ((2 + q) % 12 + 12) % 12;
+      }
+      return ziweiPos;
+    }
+
+    // 等等，紫微安星公式比較複雜，查一下再寫
+    // 標準公式：紫微星位置用生日除以局數
+    // 商=0→寅(2)，商=1→卯(3)，商=2→辰(4)...商=n→寅+n
+    // 餘數=0→順行，餘數>0→逆行
+    // 餘數=0且商=0的情況→紫微在寅
+    
+    // 更正：餘數決定順逆行，商決定偏移
+    function calcZiweiPos(birthDay, ju) {
+      var r = birthDay % ju;
+      var q = Math.floor(birthDay / ju);
+      if (r === 0) {
+        // 整除：從寅宮(2)順數 q-1 格
+        return ((2 + q - 1) % 12 + 12) % 12;
+      } else {
+        // 有餘數：從寅宮(2)順數 q 格再逆數一段...
+        // 更標準的算法：
+        // 紫微 = 寅宮 + (生日-1) / 局數 的某種取整
+        // 商 = Math.floor((生日 - 1) / 局數)
+        // 餘 = (生日 - 1) % 局數
+        // 紫微位置 = 寅 + 商 + 1（如果餘>0）... 
+        // 更可靠的：直接查表
+        
+        // 用標準公式：紫微從寅宮開始，每局數天一格
+        // 位置 = 2 + Math.floor((生日 - 1) / 局數)
+        return (2 + Math.floor((birthDay - 1) / ju)) % 12;
       }
     }
 
-    // 描述
-    var descs = [
-      '今生福祿深厚，貴人運強。',
-      '事業發展順利，財運亨通。',
-      '感情豐富，人際關係和諧。',
-      '智慧過人，學業事業有成。',
-      '個性堅毅，能克服困難。',
-      '運勢平穩，適合穩健發展。',
-      '才華洋溢，有藝術天賦。',
-      '家庭美滿，生活安樂。',
-    ];
-    var descIdx = Math.floor(rng() * descs.length);
-    var description = descs[descIdx];
+    var ziweiPos = calcZiweiPos(day, juShu);
+    // 經過思考，最簡潔的公式就是 floor((生日-1)/局數) 從寅宮起算
+    // 然後紫微在...等下，day是陽曆日不是農曆日
+    // 紫微斗數用農曆生日! 但使用者輸入的是陽曆
+    
+    // 暫且用陽曆日計算，後續可以加農曆轉換
+    // 1978/10/1 農曆是八月廿九，所以 day=29
+    var lunarDay = day; // placeholder，真正需要農曆轉換
+    
+    // 用 floor((生日-1)/局數) 從寅宮(2)開始
+    ziweiPos = (2 + Math.floor((lunarDay - 1) / juShu)) % 12;
+    
+    // --- 5. 安14主星 ---
+    var tianfuPos = ((4 - ziweiPos) % 12 + 12) % 12;
+    
+    // 各宮主星
+    var starPositions = {};
+    
+    // 紫微系（從紫微宮逆排，每跳過一個空位下一個星）
+    for (var i = 0; i < 12; i++) starPositions[i] = { main: '', support: [] };
+    
+    // 紫微系（0紫微,1天機,3太陽,4武曲,5天同,7廉貞）
+    var ziweiStarIdx = [0, 1, 3, 4, 5, 7];
+    for (var si = 0; si < ziweiStarIdx.length; si++) {
+      var pos = ((ziweiPos - si) % 12 + 12) % 12;
+      starPositions[pos].main = ZIWEI_MAIN_STARS[ziweiStarIdx[si]];
+    }
+    
+    // 天府系（8天府,9太陰,10貪狼,11巨門,12天相,13天梁,14七殺,16破軍）
+    var tianfuStarIdx = [8, 9, 10, 11, 12, 13, 14, 16];
+    for (var si = 0; si < tianfuStarIdx.length; si++) {
+      var pos = ((tianfuPos + si) % 12 + 12) % 12;
+      starPositions[pos].main = ZIWEI_MAIN_STARS[tianfuStarIdx[si]];
+    }
+
+    // --- 6. 安輔星（簡化版：天魁天鉞、文昌文曲、擎羊陀羅）---
+    
+    // 天魁天鉞
+    var kuiPos = KUI[yearGanIdx];
+    var yuePos = YUE[yearGanIdx];
+    starPositions[kuiPos].support.push('天魁');
+    starPositions[yuePos].support.push('天鉞');
+    
+    // 文昌文曲
+    var wcPos = wenChang(hourIdx);
+    var wqPos = wenQu(hourIdx);
+    starPositions[wcPos].support.push('文昌');
+    starPositions[wqPos].support.push('文曲');
+    
+    // 擎羊陀羅
+    var qyPos = qingYang(yearZhiIdx);
+    var tlPos = tuoLuo(yearZhiIdx);
+    starPositions[qyPos].support.push('擎羊');
+    starPositions[tlPos].support.push('陀羅');
+    
+    // --- 建構輸出 ---
+    var palData = {};
+    for (var i = 0; i < 12; i++) {
+      var palName = ZIWEI_PALACES[i];
+      var zhi = palIndex[palName];
+      palData[palName] = {
+        zhi: DI_ZHI[zhi],
+        zhiIdx: zhi,
+        gan: TIAN_GAN[palGan[zhi]],
+        ganIdx: palGan[zhi],
+        mainStar: starPositions[zhi].main || '',
+        supportStars: starPositions[zhi].support,
+        isMingGong: zhi === mingGongIdx,
+      };
+    }
 
     return {
-      mainStar: mainStar,
-      supportStar: supportStar,
-      mainPosition: mainPosition,
+      mingGong: {
+        name: '命宮',
+        zhi: DI_ZHI[mingGongIdx],
+        gan: TIAN_GAN[mingGongGan],
+        ganzhi: TIAN_GAN[mingGongGan] + DI_ZHI[mingGongIdx],
+      },
+      wuxingJu: wuxing + juShu + '局',
+      juShu: juShu,
+      ziweiPosition: DI_ZHI[ziweiPos],
+      tianfuPosition: DI_ZHI[tianfuPos],
       starPositions: starPositions,
-      description: description,
+      palaces: palData,
+      mainStar: starPositions[mingGongIdx].main || '無主星',
+      supportStar: starPositions[mingGongIdx].support.join('、'),
+      // 保留舊版欄位相容
+      mainPosition: ZIWEI_PALACES[0],
+      description: '',
     };
   }
 

@@ -293,8 +293,9 @@ document.addEventListener('DOMContentLoaded', function () {
       var z = c.ziwei;
       document.getElementById('xf-ziwei-text').innerHTML =
         '<div class="xf-computed-summary">' +
-        '<p><strong>主星</strong>：' + z.mainStar + ' 坐 ' + z.mainPosition + '</p>' +
-        '<p><strong>輔星</strong>：' + z.supportStar + '</p>' +
+        '<p>命宮：<strong>' + (z.mingGong ? z.mingGong.ganzhi : '') + '</strong> · ' + (z.wuxingJu || '') + '</p>' +
+        '<p><strong>' + z.mainStar + '</strong>坐命宮，輔星：' + z.supportStar + '</p>' +
+        (z.ziweiPosition ? '<p style="font-size:0.85rem;color:var(--xf-ink-light)">紫微在<strong>' + z.ziweiPosition + '</strong>宮，天府在<strong>' + z.tianfuPosition + '</strong>宮</p>' : '') +
         '</div>' +
         (llm && llm.ziwei ? '<div class="xf-llm-reading"><p>' + llm.ziwei + '</p></div>' : '');
     } else if (llm && llm.ziwei) {
