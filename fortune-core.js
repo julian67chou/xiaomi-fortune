@@ -137,6 +137,120 @@
     午: 6, 未: 7, 申: 8, 酉: 9, 戌: 10, 亥: 11,
   };
 
+  // ============================================================
+  // 農曆轉換（1900-2100）
+  // ============================================================
+
+  // 農曆1900-2100的閏大小信息表
+  // 編碼：bit0-3=閏月月份(0=無), bit4=閏月大小(0=29,1=30), bit5-16=12個月大小(1=30天,0=29天)
+  var LUNAR_INFO = [
+    0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,
+    0x04ae0,0x0a5b6,0x0a4d0,0x0d250,0x1d255,0x0b540,0x0d6a0,0x0ada2,0x095b0,0x14977,
+    0x04970,0x0a4b0,0x0b4b5,0x06a50,0x06d40,0x1ab54,0x02b60,0x09570,0x052f2,0x04970,
+    0x06566,0x0d4a0,0x0ea50,0x06e95,0x05ad0,0x02b60,0x186e3,0x092e0,0x1c8d7,0x0c950,
+    0x0d4a0,0x1d8a6,0x0b550,0x056a0,0x1a5b4,0x025d0,0x092d0,0x0d2b2,0x0a950,0x0b557,
+    0x06ca0,0x0b550,0x15355,0x04da0,0x0a5d0,0x14573,0x052d0,0x0a9a8,0x0e950,0x06aa0,
+    0x0aea6,0x0ab50,0x04b60,0x0aae4,0x0a570,0x05260,0x0f263,0x0d950,0x05b57,0x056a0,
+    0x096d0,0x04dd5,0x04ad0,0x0a4d0,0x0d4d4,0x0d250,0x0d558,0x0b540,0x0b6a0,0x195a6,
+    0x095b0,0x049b0,0x0a974,0x0a4b0,0x0b27a,0x06a50,0x06d40,0x0af46,0x0ab60,0x09570,
+    0x04af5,0x04970,0x064b0,0x074a3,0x0ea50,0x06b58,0x05ac0,0x0ab60,0x096d5,0x092e0,
+    0x0c960,0x0d954,0x0d4a0,0x0da50,0x07552,0x056a0,0x0abb7,0x025d0,0x092d0,0x0cab5,
+    0x0a950,0x0b4a0,0x0baa4,0x0ad50,0x055d9,0x04ba0,0x0a5b0,0x15176,0x052b0,0x0a930,
+    0x07954,0x06aa0,0x0ad50,0x05b52,0x04b60,0x0a6e6,0x0a4e0,0x0d260,0x0ea65,0x0d530,
+    0x05aa0,0x076a3,0x096d0,0x04afb,0x04ad0,0x0a4d0,0x1d0b6,0x0d250,0x0d520,0x0dd45,
+    0x0b5a0,0x056d0,0x055b2,0x049b0,0x0a577,0x0a4b0,0x0aa50,0x1b255,0x06d20,0x0ada0,
+    0x14b63,0x09370,0x049f8,0x04970,0x064b0,0x168a6,0x0ea50,0x06aa0,0x1a6c4,0x0aae0,
+    0x092e0,0x0d2e3,0x0c960,0x0d557,0x0d4a0,0x0da50,0x05d55,0x056a0,0x0a6d0,0x055d4,
+    0x052d0,0x0a9b8,0x0a950,0x0b4a0,0x0b6a6,0x0ad50,0x055a0,0x0aba4,0x0a5b0,0x052b0,
+    0x0b273,0x06930,0x07337,0x06aa0,0x0ad50,0x14b55,0x04b60,0x0a570,0x054e4,0x0d160,
+    0x0e968,0x0d520,0x0daa0,0x16aa6,0x056d0,0x04ae0,0x0a9d4,0x0a4d0,0x0d150,0x0f252,
+    0x0d520,
+  ];
+
+  /**
+   * 陽曆轉農曆（1900-2100）
+   * @param {number} year - 西元年
+   * @param {number} month - 1-based
+   * @param {number} day - 日期
+   * @returns {{lunarYear: number, lunarMonth: number, lunarDay: number, isLeap: boolean}}
+   */
+  function solar2lunar(year, month, day) {
+    // 基準：1900/1/31 = 農曆正月初一
+    var baseDate = new Date(1900, 0, 31);
+    var targetDate = new Date(year, month - 1, day);
+    var offset = Math.round((targetDate - baseDate) / 86400000);
+
+    if (offset < 0 || offset > 73327) {
+      return { lunarYear: year, lunarMonth: month, lunarDay: day, isLeap: false };
+    }
+
+    var lunarYear, lunarMonth, lunarDay, isLeap = false;
+    var days = offset;
+
+    // 逐年找到所在的農曆年
+    for (lunarYear = 1900; lunarYear < 2101; lunarYear++) {
+      var yearDays = lunarYearDays(lunarYear);
+      if (days < yearDays) break;
+      days -= yearDays;
+    }
+    if (lunarYear > 2100) {
+      return { lunarYear: year, lunarMonth: month, lunarDay: day, isLeap: false };
+    }
+
+    // 逐月找所在的農曆月
+    var leapM = leapMonthOf(lunarYear);
+    var monthList = [];
+    for (var i = 1; i <= 12; i++) {
+      monthList.push({ m: i, isLeap: false });
+      if (leapM === i) {
+        monthList.push({ m: i, isLeap: true });
+      }
+    }
+
+    for (var mi = 0; mi < monthList.length; mi++) {
+      var cur = monthList[mi];
+      var mDays = cur.isLeap ? (leapMonthDays(lunarYear)) : lunarMonthDays(lunarYear, cur.m);
+      if (days < mDays) {
+        lunarMonth = cur.m;
+        isLeap = cur.isLeap;
+        lunarDay = days + 1;
+        return { lunarYear: lunarYear, lunarMonth: lunarMonth, lunarDay: lunarDay, isLeap: isLeap };
+      }
+      days -= mDays;
+    }
+
+    // 不該到這裡
+    return { lunarYear: lunarYear, lunarMonth: 12, lunarDay: days + 1, isLeap: false };
+  }
+
+  /** 該年農曆總天數 */
+  function lunarYearDays(year) {
+    var idx = year - 1900;
+    var total = 0;
+    for (var i = 1; i <= 12; i++) {
+      total += lunarMonthDays(year, i);
+    }
+    var leap = leapMonthDays(year);
+    if (leap > 0) total += leap;
+    return total;
+  }
+
+  /** 該月天數（1-based） */
+  function lunarMonthDays(year, month) {
+    var idx = year - 1900;
+    return (LUNAR_INFO[idx] & (0x10000 >> month)) ? 30 : 29;
+  }
+
+  /** 閏月月份（0=無閏月） */
+  function leapMonthOf(year) {
+    return LUNAR_INFO[year - 1900] & 0xf;
+  }
+
+  /** 閏月天數 */
+  function leapMonthDays(year) {
+    return (LUNAR_INFO[year - 1900] & 0x10000) ? 30 : 29;
+  }
+
   // 人類圖類型
   const RENLEITU_TYPES = [
     '顯示者', '生產者', '顯示生產者', '投射者', '反映者',
@@ -534,9 +648,9 @@
     // 然後紫微在...等下，day是陽曆日不是農曆日
     // 紫微斗數用農曆生日! 但使用者輸入的是陽曆
     
-    // 暫且用陽曆日計算，後續可以加農曆轉換
-    // 1978/10/1 農曆是八月廿九，所以 day=29
-    var lunarDay = day; // placeholder，真正需要農曆轉換
+    // 轉農曆日（紫微斗數用農曆生日）
+    var lunar = solar2lunar(year, month, day);
+    var lunarDay = lunar.lunarDay;
     
     // 用 floor((生日-1)/局數) 從寅宮(2)開始
     ziweiPos = (2 + Math.floor((lunarDay - 1) / juShu)) % 12;
@@ -866,6 +980,7 @@
     getStrokes: getStrokes,
     generateNameScience: generateNameScience,
     seededRandom: seededRandom,
+    solar2lunar: solar2lunar,
 
     // 常數表（供外部參考使用）
     TIAN_GAN: TIAN_GAN,
