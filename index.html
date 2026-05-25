@@ -378,60 +378,170 @@ document.addEventListener('DOMContentLoaded', function () {
       yijingLines: yijingLines
     };
 
+    // 姓名學筆畫
+    var sStrokes = [];
+    var gStrokes = [];
+    for (var si = 0; si < surname.length; si++) {
+      var ss = getStrokes(surname[si]);
+      if (ss !== null) sStrokes.push(ss);
+    }
+    for (var gi = 0; gi < givenname.length; gi++) {
+      var gs = getStrokes(givenname[gi]);
+      if (gs !== null) gStrokes.push(gs);
+    }
+
     goTo('loading');
-    runLoadingSequence();
+    callXiaomiApi(fullName, dateVal, hourText, place || '未知', gender === 'male' ? '男' : '女',
+      year, month, day, lifePathNum, surname, givenname, sStrokes, gStrokes);
   });
 
-  /* ===== Loading 動畫 ===== */
-  function runLoadingSequence () {
+  /* ===== 小彌 API 呼叫 ===== */
+  function callXiaomiApi (fullName, dateVal, hourText, place, gender, year, month, day, lifePathNum, surname, givenname, sStrokes, gStrokes) {
     var loaderText = document.querySelector('.xf-loading-text');
     var loaderSub = document.querySelector('.xf-loading-sub');
-    var steps = [
-      '小彌正在為你推演天機⋯',
-      '翻閱命盤，細察星辰⋯',
-      '八字符號漸漸浮現⋯',
-      '紫微星曜正在排列⋯',
-      '靈數共振⋯人類圖展開⋯',
-      '占星盤已經定位⋯'
-    ];
-    var i = 0;
-    var interval = setInterval(function () {
-      i++;
-      if (i < steps.length) {
-        loaderText.textContent = steps[i];
-        loaderSub.textContent = '⋯⋯';
-      } else {
-        clearInterval(interval);
-        loaderText.textContent = '✨ 命理推演完成 ✨';
-        loaderSub.textContent = '讓小彌為你揭曉⋯';
-        setTimeout(function () {
-          renderResults();
-          goTo('result');
-        }, 800);
+
+    loaderText.textContent = '小彌正在為你推演天機⋯';
+    loaderSub.textContent = '翻閱命盤，細察星辰⋯';
+
+    var sStrokesStr = sStrokes.length > 0 ? sStrokes.join(',') : '未知';
+    var gStrokesStr = gStrokes.length > 0 ? gStrokes.join(',') : '未知';
+
+    var prompt = '你是一個精通東西方命理的算命師「小彌」，專門為人解惑。請根據以下出生資訊，用繁體中文為 ' + fullName + ' 生成完整的命理解讀。\n\n' +
+      '## 基本資料\n' +
+      '- 姓名：' + fullName + '\n' +
+      '- 姓氏筆畫：' + sStrokesStr + '\n' +
+      '- 名字筆畫：' + gStrokesStr + '\n' +
+      '- 出生日期：' + dateVal + '（' + year + '年' + month + '月' + day + '日）\n' +
+      '- 出生時辰：' + hourText + '\n' +
+      '- 出生地：' + place + '\n' +
+      '- 性別：' + gender + '\n' +
+      '- 生命靈數：' + lifePathNum + '\n\n' +
+      '請根據以上資料，從以下七個面向解讀，每個面向請用 100~200 字。請用指定的標題標記回覆，不要加其他內容：\n\n' +
+      '【八字】\\n（分析八字四柱的推算結果、五行生剋、日主旺衰、用神喜忌。指定格式開頭：八字四柱：甲子年 甲子月 甲子日 甲子時）\\n\\n' +
+      '【紫微】\\n（分析紫微斗數命盤格局、主星落宮、十二宮位重點）\\n\\n' +
+      '【人類圖】\\n（分析人類圖的類型、人生策略、內在權威）\\n\\n' +
+      '【占星】\\n（分析西洋占星：太陽星座、月亮星座、上升星座、主要行星宮位）\\n\\n' +
+      '【塔羅】\\n（抽一張大阿爾克那塔羅牌，說明牌義）\\n\\n' +
+      '【易經】\\n（起一卦，說明卦象與對 ' + fullName + ' 的啟示）\\n\\n' +
+      '【總結】\\n（總結以上所有系統的共通訊息，以「' + fullName + '，」開頭，約 200 字）';
+
+    var startTime = Date.now();
+    var stepInterval = setInterval(function () {
+      var elapsed = Math.floor((Date.now() - startTime) / 1000);
+      var messages = [
+        '小彌正在為你推演天機⋯',
+        '翻閱命盤，細察星辰⋯',
+        '八字符號漸漸浮現⋯',
+        '紫微星曜正在排列⋯',
+        '靈數共振⋯人類圖展開⋯',
+        '占星盤已經定位⋯',
+        '小彌正在書寫你的命理⋯'
+      ];
+      var idx = Math.min(elapsed, messages.length - 1);
+      loaderText.textContent = messages[idx];
+      var dots = '';
+      for (var d = 0; d < (elapsed % 4); d++) dots += '.';
+      loaderSub.textContent = '請稍候' + dots;
+    }, 1000);
+
+    fetch('https://api.deepseek.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer sk-1374c7434a77473faceabd3698e6b23b'
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: '你是小彌，一個精通東西方命理的算命師。你講話溫柔、有智慧，用繁體中文。你的解讀要具體、有根據，不要含糊其辭。' },
+          { role: 'user', content: prompt }
+        ],
+        max_tokens: 4096,
+        temperature: 0.7
+      })
+    })
+    .then(function (response) { return response.json(); })
+    .then(function (data) {
+      clearInterval(stepInterval);
+      if (data.error) {
+        loaderText.textContent = '⚠️ 小彌算不出來⋯';
+        loaderSub.textContent = '錯誤：' + (data.error.message || 'API 錯誤');
+        return;
       }
-    }, 900);
+      var content = data.choices[0].message.content;
+      loaderText.textContent = '✨ 命理推演完成 ✨';
+      loaderSub.textContent = '讓小彌為你揭曉⋯';
+
+      // 解析區塊
+      window.xfLLMResult = {
+        bazi: extractBlock(content, '【八字】', '【紫微】'),
+        ziwei: extractBlock(content, '【紫微】', '【人類圖】'),
+        renleitu: extractBlock(content, '【人類圖】', '【占星】'),
+        astrology: extractBlock(content, '【占星】', '【塔羅】'),
+        tarot: extractBlock(content, '【塔羅】', '【易經】'),
+        yijing: extractBlock(content, '【易經】', '【總結】'),
+        summary: extractBlock(content, '【總結】', null)
+      };
+
+      setTimeout(function () {
+        // 生成前端計算的內容
+        renderResults();
+        goTo('result');
+      }, 800);
+    })
+    .catch(function (err) {
+      clearInterval(stepInterval);
+      loaderText.textContent = '⚠️ 連不上小彌⋯';
+      loaderSub.textContent = '錯誤：' + err.message;
+    });
+  }
+
+  function extractBlock (text, startTag, endTag) {
+    var start = text.indexOf(startTag);
+    if (start === -1) return '<p>（小彌正在思考中⋯）</p>';
+    start += startTag.length;
+    if (!endTag) return text.substring(start).trim().replace(/\\n/g, '</p><p>');
+    var end = text.indexOf(endTag, start);
+    if (end === -1) return text.substring(start).trim().replace(/\\n/g, '</p><p>');
+    return text.substring(start, end).trim().replace(/\\n/g, '</p><p>');
   }
 
   /* ===== 結果渲染 ===== */
   function renderResults () {
     var d = window.xfResult;
+    var llm = window.xfLLMResult;
     if (!d) return;
 
     document.getElementById('xf-result-name').textContent = d.name + ' · ' + d.gender + ' · ' + d.birthDate;
 
     var lifePathEl = document.getElementById('xf-life-number');
     lifePathEl.textContent = d.lifePathNum;
+    document.getElementById('xf-life-meaning').textContent = '生命靈數 ' + d.lifePathNum + ' 代表你的人生道路數字，與你的八字日主互相呼應。';
 
-    document.getElementById('xf-tarot-name').textContent = d.tarotCard.name;
-    document.getElementById('xf-tarot-meaning').textContent = d.tarotCard.meaning;
-    document.getElementById('xf-yijing-display').innerHTML = renderYijing(d.yijingLines);
+    // LLM 生成的內容
+    if (llm) {
+      document.getElementById('xf-bazi-text').innerHTML = '<p>' + (llm.bazi || '（小彌正在思考⋯）') + '</p>';
+      document.getElementById('xf-ziwei-text').innerHTML = '<p>' + (llm.ziwei || '（小彌正在思考⋯）') + '</p>';
+      document.getElementById('xf-renleitu-text').innerHTML = '<p>' + (llm.renleitu || '（小彌正在思考⋯）') + '</p>';
+      document.getElementById('xf-astrology-text').innerHTML = '<p>' + (llm.astrology || '（小彌正在思考⋯）') + '</p>';
+      document.getElementById('xf-tarot-name').textContent = '🔮';
+      document.getElementById('xf-tarot-meaning').textContent = llm.tarot || '（小彌正在思考⋯）';
+      document.getElementById('xf-yijing-display').innerHTML = '<p style="text-align:center;padding:1rem">' + (llm.yijing || '（小彌正在思考⋯）') + '</p>';
+      document.getElementById('xf-summary-body').innerHTML = '<p>' + (llm.summary || '（小彌正在思考⋯）') + '</p>';
+    } else {
+      // fallback: 沒有 LLM 結果時用舊的模擬
+      document.getElementById('xf-bazi-text').innerHTML = generateBaziReading(d);
+      document.getElementById('xf-ziwei-text').innerHTML = generateZiweiReading(d);
+      document.getElementById('xf-renleitu-text').innerHTML = generateRenleituReading(d);
+      document.getElementById('xf-astrology-text').innerHTML = generateAstrologyReading(d);
+      document.getElementById('xf-tarot-name').textContent = d.tarotCard.name;
+      document.getElementById('xf-tarot-meaning').textContent = d.tarotCard.meaning;
+      document.getElementById('xf-yijing-display').innerHTML = renderYijing(d.yijingLines);
+      document.getElementById('xf-summary-body').innerHTML = generateSummary(d);
+    }
 
-    document.getElementById('xf-bazi-text').innerHTML = generateBaziReading(d);
-    document.getElementById('xf-ziwei-text').innerHTML = generateZiweiReading(d);
-    document.getElementById('xf-renleitu-text').innerHTML = generateRenleituReading(d);
+    // 姓名學（前端計算）
     document.getElementById('xf-name-text').innerHTML = generateNameScience(d);
-    document.getElementById('xf-astrology-text').innerHTML = generateAstrologyReading(d);
-    document.getElementById('xf-summary-body').innerHTML = generateSummary(d);
 
     setTimeout(function () {
       var cards = document.querySelectorAll('.xf-card');
@@ -443,7 +553,8 @@ document.addEventListener('DOMContentLoaded', function () {
     initTabs();
   }
 
-  /* ===== 命理解讀產生器 ===== */
+  /* 保留舊的模擬產生器作為 fallback */
+
   function generateBaziReading (d) {
     var heavenlyStems = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
     var earthlyBranches = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
