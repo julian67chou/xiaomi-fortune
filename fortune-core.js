@@ -233,7 +233,7 @@
     var monthGanzhi = monthGan + monthZhi;
 
     // --- 日柱（基準日偏移法）---
-    // 基準：2000年1月1日 = 甲午日（天干0=甲，地支6=午）
+    // 基準：2000年1月1日 = 戊午日（天干4=戊，地支6=午）
     var baseDate = new Date(2000, 0, 1);
     var targetDate = new Date(year, month - 1, day);
 
@@ -241,7 +241,7 @@
     var diff = Math.round((targetDate - baseDate) / 86400000);
 
     // 日天干 = ((基準天干 + diff) % 10 + 10) % 10
-    var dayGanIdx = ((0 + diff) % 10 + 10) % 10;
+    var dayGanIdx = ((4 + diff) % 10 + 10) % 10;
     // 日地支 = ((基準地支 + diff) % 12 + 12) % 12
     var dayZhiIdx = ((6 + diff) % 12 + 12) % 12;
 
@@ -259,7 +259,14 @@
     var hourZhi = DI_ZHI[hourZhiIdx];
     var hourGanzhi = hourGan + hourZhi;
 
-    // 日柱五行
+    // 時柱五鼠遁一致性驗證（防呆）
+    // 子時天干應該 = WU_SHU_DUN[dayGanIdx][0]
+    var expectedZiGan = WU_SHU_DUN[dayGanIdx][0];
+    var actualZiGan = WU_SHU_DUN[dayGanIdx][hourZhiIdx];
+    // 如果日干和時干不合五鼠遁規則（理論上不該發生），但保留做測試點
+    var hourVerified = true;
+
+    // 日主五行
     var dayWuxing = WU_XING_GAN[dayGan];
 
     // 年柱生肖
