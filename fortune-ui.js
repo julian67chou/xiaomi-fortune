@@ -159,15 +159,23 @@ document.addEventListener('DOMContentLoaded', function () {
     loaderSub.textContent = '翻閱命盤，細察星辰⋯';
 
     // prompt：帶入前端已算好的數據
-    var prompt = '你是一個精通東西方命理的算命師「小彌」。以下是已經推算好的命理數據，請根據這些數據為 ' + fullName + ' 解讀：\n\n' +
-      '八字四柱：' + baziResult.yearGanzhi + '年 ' + baziResult.monthGanzhi + '月 ' + baziResult.dayGanzhi + '日 ' + baziResult.hourGanzhi + '時\n' +
-      '紫微斗數：' + ziweiResult.mainStar + '坐' + ziweiResult.mainPosition + '，輔星' + ziweiResult.supportStar + '\n' +
-      '人類圖類型：' + renleituResult.type + '，通道：' + renleituResult.channel + '\n' +
-      '西洋占星：太陽' + astrologyResult.sun + '座、月亮' + astrologyResult.moon + '座、上升' + astrologyResult.rising + '座\n' +
-      '生命靈數：' + lifePathNum + '\n' +
-      '姓名三才：' + (nameScience.sanCai || '未知') + '（' + (nameScience.sanCaiResult || '—') + '）\n\n' +
-      '請根據以上已計算的數據進行解讀，不要重新推算數值。用 ===XXX=== 格式輸出。\n\n' +
-      '===八字===\n內容\n\n===紫微===\n內容\n\n===人類圖===\n內容\n\n===占星===\n內容（務必明確寫出太陽星座、月亮星座、上升星座）\n\n===塔羅===\n內容\n\n===易經===\n內容\n\n===總結===\n以「' + fullName + '，」開頭的總結，約200字';
+    var prompt = '你是一個精通東西方命理的算命師「小彌」。你的風格溫暖、具體、有洞察力，用繁體中文。以下是前端已計算好的命理數據，請根據這些數據為 ' + fullName + ' 解讀：\n\n' +
+      '【出生資料】' + dateVal + ' ' + hourText + ' · ' + gender + ' · 出生地 ' + place + '\n\n' +
+      '【八字四柱】' + baziResult.yearGanzhi + '年 ' + baziResult.monthGanzhi + '月 ' + baziResult.dayGanzhi + '日 ' + baziResult.hourGanzhi + '時\n' +
+      '日主：' + baziResult.dayGan + '（' + baziResult.dayWuxing + '）· 生肖：' + baziResult.yearZodiac + '\n\n' +
+      '【紫微斗數】主星：' + ziweiResult.mainStar + '坐' + ziweiResult.mainPosition + '，輔星：' + ziweiResult.supportStar + '\n\n' +
+      '【人類圖】類型：' + renleituResult.type + ' · 通道：' + renleituResult.channel + ' · 策略：' + renleituResult.strategy + ' · 權威：' + renleituResult.authority + '\n\n' +
+      '【西洋占星】太陽 ' + astrologyResult.sun + '座 · 月亮 ' + astrologyResult.moon + '座 · 上升 ' + astrologyResult.rising + '座\n\n' +
+      '【生命靈數】' + lifePathNum + '\n\n' +
+      '【姓名三才】' + (nameScience.sanCai || '未知') + '（' + (nameScience.sanCaiResult || '—') + '）\n\n' +
+      '【要求】\n' +
+      '1. 不要重新推算任何數值，全部基於以上數據解讀。\n' +
+      '2. 每個領域要給出具體的命理分析，包含該命理系統的專有名詞，並結合多個系統互相印證。\n' +
+      '3. 給出針對性的人生建議：事業方向、人際關係、財運、健康方面的提醒或建議。\n' +
+      '4. 語氣溫暖真誠，像一個真正懂命理的朋友在聊天。\n' +
+      '5. 用 ===XXX=== 格式輸出，每個區塊內容約100-150字。\n\n' +
+      '格式範例：\n' +
+      '===八字===\n內容\n\n===紫微斗數===\n內容\n\n===人類圖===\n內容\n\n===占星===\n內容\n\n===塔羅===\n內容\n\n===易經===\n內容\n\n===總結===\n以「' + fullName + '，」開頭的總結，約200字，整合多重命理系統的共通信息給予人生方向的指引。';
 
     var startTime = Date.now();
     var stepInterval = setInterval(function () {
@@ -197,7 +205,7 @@ document.addEventListener('DOMContentLoaded', function () {
       body: JSON.stringify({
         model: 'deepseek-chat',
         messages: [
-          { role: 'system', content: '你是小彌，一個精通東西方命理的算命師。你講話溫柔、有智慧，用繁體中文。你的解讀要具體、有根據，不要含糊其辭。' },
+          { role: 'system', content: '你是小彌，一個精通東西方命理的算命師。你的角色特質：\n1. 溫暖真誠，像一個懂命理的朋友，不是冷冰冰的分析機器。\n2. 解讀要具體——直接說「你的八字日主丙火生於酉月，正財格，財星當令，意味著⋯」，而不是籠統的「你很有才華」。\n3. 每個命理系統要給出針對性的建議：事業、財運、感情、健康至少涵蓋兩個面向。\n4. 當多個系統指向相同方向時，要點出來互相印證（例如「八字和人類圖都顯示⋯」）。\n5. 用繁體中文，語氣溫柔但不廢話。' },
           { role: 'user', content: prompt }
         ],
         max_tokens: 4096,
