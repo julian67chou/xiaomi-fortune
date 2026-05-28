@@ -80,7 +80,7 @@
     var monthOffset = month - 2; // 2月=0, 3月=1, ..., 12月=10
     // 2月4日後 = 寅(2)，之前 = 丑(1)
     if (day >= JIE_QI_DAY[monthOffset]) {
-      return monthOffset + 2; // 2月→2(寅), 3月→3(卯), ..., 12月→12 → 取mod
+      return (monthOffset + 2) % 12; // 2月→2(寅), 3月→3(卯), ..., 12月→12%12=0(子)
     } else {
       // 還沒到節氣 → 上個月的月地支
       return monthOffset + 1; // 2月→1(丑), 3月→2(寅), ..., 12月→11(亥)
@@ -176,9 +176,9 @@
    */
   function solar2lunar(year, month, day) {
     // 基準：1900/1/31 = 農曆正月初一
-    var baseDate = new Date(1900, 0, 31);
-    var targetDate = new Date(year, month - 1, day);
-    var offset = Math.round((targetDate - baseDate) / 86400000);
+    var baseMs = Date.UTC(1900, 0, 31);
+    var targetMs = Date.UTC(year, month - 1, day);
+    var offset = Math.round((targetMs - baseMs) / 86400000);
 
     if (offset < 0 || offset > 73327) {
       return { lunarYear: year, lunarMonth: month, lunarDay: day, isLeap: false };
@@ -238,7 +238,7 @@
   /** 該月天數（1-based） */
   function lunarMonthDays(year, month) {
     var idx = year - 1900;
-    return (LUNAR_INFO[idx] & (0x10000 >> month)) ? 30 : 29;
+    return (LUNAR_INFO[idx] & (1 << (4 + month))) ? 30 : 29;
   }
 
   /** 閏月月份（0=無閏月） */
@@ -248,7 +248,7 @@
 
   /** 閏月天數 */
   function leapMonthDays(year) {
-    return (LUNAR_INFO[year - 1900] & 0x10000) ? 30 : 29;
+    return (LUNAR_INFO[year - 1900] & 0x10) ? 30 : 29;
   }
 
   // 人類圖類型
@@ -334,11 +334,11 @@
 
     // --- 日柱（基準日偏移法）---
     // 基準：2000年1月1日 = 戊午日（天干4=戊，地支6=午）
-    var baseDate = new Date(2000, 0, 1);
-    var targetDate = new Date(year, month - 1, day);
+    var baseMs = Date.UTC(2000, 0, 1);
+    var targetMs = Date.UTC(year, month - 1, day);
 
     // 計算天數差
-    var diff = Math.round((targetDate - baseDate) / 86400000);
+    var diff = Math.round((targetMs - baseMs) / 86400000);
 
     // 日天干 = ((基準天干 + diff) % 10 + 10) % 10
     var dayGanIdx = ((4 + diff) % 10 + 10) % 10;
@@ -789,7 +789,8 @@
    * @returns {object}
    */
   function calcRenleitu(year, month, day, hour) {
-    var rng = seededRandom(year, month, day);
+    var hourIdx = typeof hour === 'string' ? (HOUR_ZHI_INDEX[hour] || 0) : (Number(hour) || 0);
+    var rng = seededRandom(year, month, day + hourIdx);
 
     // 類型
     var typeIdx = Math.floor(rng() * RENLEITU_TYPES.length);
@@ -953,6 +954,10 @@
       var gt = getStrokes(givenname[j]);
       if (gt !== null) gStrokes.push(gt);
       else missing.push(givenname[j]);
+    }
+
+    if (sStrokes.length === 0 || gStrokes.length === 0) {
+      return { error: '姓氏或名字至少需包含一個有效中文字', missing: missing };
     }
 
     var totalSurname = sStrokes.reduce(function (a, b) { return a + b; }, 0);
