@@ -275,20 +275,7 @@
     return (LUNAR_INFO[year - 1900] & 0x10) ? 30 : 29;
   }
 
-  // 人類圖類型
-  const RENLEITU_TYPES = [
-    '顯示者', '生產者', '顯示生產者', '投射者', '反映者',
-  ];
-  const RENLEITU_STRATEGIES = {
-    顯示者: '告知',
-    生產者: '等待回應',
-    顯示生產者: '等待回應',
-    投射者: '等待邀請',
-    反映者: '等待月亮週期',
-  };
-  const RENLEITU_AUTHORITIES = [
-    '情緒中心', '薦骨中心', '直覺中心', '意志力中心', '自我中心', '環境',
-  ];
+  // 人類圖類型（已有實作常數保留供參考）
 
   // ============================================================
   // 偽隨機函數 mulberry32
@@ -752,55 +739,130 @@
   }
 
   // ============================================================
-  // 3. 人類圖（簡化版）
+  // 3. 人類圖（太陽位置計算，基於天文演算法）
   // ============================================================
 
+  var PI = Math.PI;
+
+  function mod(a, b) {
+    return ((a % b) + b) % b;
+  }
+
+  function calcSunEclipticLongitude(year, month, day, hour) {
+    var y = year;
+    var m = month;
+    var d = day;
+    var h = (hour || 0);
+    var JD = 367 * y - Math.floor(7 * (y + Math.floor((m + 9) / 12)) / 4) + Math.floor(275 * m / 9) + d + 1721013.5 + h / 24;
+    var n = JD - 2451545.0;
+    var L = mod(280.460 + 0.98564736 * n, 360);
+    var g = mod(357.528 + 0.98560028 * n, 360);
+    var C = 1.915 * Math.sin(g * PI / 180) + 0.020 * Math.sin(2 * g * PI / 180);
+    var lambda = mod(L + C, 360);
+    return lambda;
+  }
+
+  function calcSunGate(lambda) {
+    var gate = Math.floor(lambda / 5.625) + 1;
+    if (gate < 1) gate = 1;
+    if (gate > 64) gate = 64;
+    return gate;
+  }
+
+  var HUMAN_DESIGN_CENTERS = {
+    Head: [61, 63, 64],
+    Ajna: [8, 11, 16, 17, 24, 43, 47],
+    Throat: [12, 20, 23, 31, 33, 35, 45, 56, 62],
+    G: [1, 2, 4, 7, 10, 13, 15, 25, 46],
+    Heart: [21, 26, 40, 51],
+    Sacral: [3, 5, 9, 14, 27, 29, 34, 42, 59],
+    Spleen: [18, 20, 28, 32, 44, 48, 50, 57],
+    SolarPlexus: [6, 22, 30, 36, 37, 49, 55],
+    Root: [19, 38, 39, 41, 52, 53, 54, 58, 60]
+  };
+
+  function getCentersForGate(gate) {
+    var res = [];
+    var names = ['Head', 'Ajna', 'Throat', 'G', 'Heart', 'Sacral', 'Spleen', 'SolarPlexus', 'Root'];
+    for (var i = 0; i < names.length; i++) {
+      var c = names[i];
+      var gates = HUMAN_DESIGN_CENTERS[c];
+      for (var j = 0; j < gates.length; j++) {
+        if (gates[j] === gate) {
+          res.push(c);
+          break;
+        }
+      }
+    }
+    return res;
+  }
+
   /**
-   * 人類圖計算（簡化版 — 用 seed 產生固定結果）
+   * 人類圖計算（基於太陽位置）
+   * 註：實際人類圖需要太陽+地球+其他天體位置，本實作為太陽位置簡化版
    * @param {number} year
-   * @param {number} month
+   * @param {number} month - 1-based
    * @param {number} day
-   * @param {string|number} hour - 時辰名稱或索引
+   * @param {number} hour - 數值小時（0-23）
    * @returns {object}
    */
   function calcRenleitu(year, month, day, hour) {
-    var hourIdx = typeof hour === 'string' ? (HOUR_ZHI_INDEX[hour] || 0) : (Number(hour) || 0);
-    var rng = seededRandom(year, month, day + hourIdx);
+    var lambda = calcSunEclipticLongitude(year, month, day, hour);
+    var sunGate = calcSunGate(lambda);
+    var definedCenters = getCentersForGate(sunGate);
+    var definedMap = {};
+    for (var i = 0; i < definedCenters.length; i++) {
+      definedMap[definedCenters[i]] = true;
+    }
+    var sacralDefined = !!definedMap['Sacral'];
+    var throatDefined = !!definedMap['Throat'];
+    var heartDefined = !!definedMap['Heart'];
+    var solarDefined = !!definedMap['SolarPlexus'];
+    var rootDefined = !!definedMap['Root'];
+    var spleenDefined = !!definedMap['Spleen'];
 
-    // 類型
-    var typeIdx = Math.floor(rng() * RENLEITU_TYPES.length);
-    var type = RENLEITU_TYPES[typeIdx];
+    var type;
+    if (sacralDefined) {
+      type = throatDefined ? '顯示生產者' : '生產者';
+    } else if (throatDefined && (heartDefined || solarDefined || rootDefined)) {
+      type = '顯示者';
+    } else if (definedCenters.length > 0) {
+      type = '投射者';
+    } else {
+      type = '反映者';
+    }
 
-    // 通道（用兩個號碼表示，1~64）
-    var gate1 = Math.floor(rng() * 64) + 1;
-    var gate2 = Math.floor(rng() * 64) + 1;
-    var channel = gate1 + '-' + gate2;
+    var authority;
+    if (sacralDefined) {
+      authority = '薦骨中心';
+    } else if (solarDefined) {
+      authority = '情緒中心';
+    } else if (spleenDefined) {
+      authority = '直覺中心';
+    } else if (heartDefined) {
+      authority = '意志力中心';
+    } else {
+      authority = '自我中心';
+    }
 
-    // 人生策略
-    var strategy = RENLEITU_STRATEGIES[type] || '等待';
-
-    // 權威
-    var authIdx = Math.floor(rng() * RENLEITU_AUTHORITIES.length);
-    var authority = RENLEITU_AUTHORITIES[authIdx];
-
-    // 描述
-    var descs = [
-      '你的能量場充滿影響力，善於引導他人。',
-      '你擁有持續工作的能量，適合投入熱情的事業。',
-      '你擅長觀察與分析，能夠看到事物的本質。',
-      '你的敏銳直覺是天賦，能感知環境的細微變化。',
-      '你的人生在不斷的嘗試中找到方向。',
-      '你的獨特視角為世界帶來新的可能性。',
-    ];
-    var descIdx = Math.floor(rng() * descs.length);
-    var description = descs[descIdx];
+    var strategy;
+    if (type === '生產者' || type === '顯示生產者') {
+      strategy = '等待回應';
+    } else if (type === '顯示者') {
+      strategy = '告知';
+    } else if (type === '投射者') {
+      strategy = '等待邀請';
+    } else {
+      strategy = '等待月亮週期';
+    }
 
     return {
+      sunGate: sunGate,
+      sunLongitude: lambda,
+      definedCenters: definedCenters,
       type: type,
-      channel: channel,
-      strategy: strategy,
       authority: authority,
-      description: description,
+      strategy: strategy,
     };
   }
 
