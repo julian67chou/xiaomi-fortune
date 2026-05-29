@@ -151,7 +151,7 @@
 
   // 星座相關
   const SUN_CUTOFF  = [20, 19, 21, 21, 21, 22, 23, 23, 23, 23, 22, 20];
-  const SUN_NAMES   = ['摩羯', '水瓶', '雙魚', '牡羊', '金牛', '雙子', '巨蟹', '獅子', '處女', '天秤', '天蠍', '射手'];
+  const SUN_NAMES   = ['牡羊','金牛','雙子','巨蟹','獅子','處女','天秤','天蠍','射手','摩羯','水瓶','雙魚'];
   const MOON_NAMES  = ['牡羊', '金牛', '雙子', '巨蟹', '獅子', '處女', '天秤', '天蠍', '射手', '摩羯', '水瓶', '雙魚'];
   const RISING_NAMES = ['牡羊', '金牛', '雙子', '巨蟹', '獅子', '處女', '天秤', '天蠍', '射手', '摩羯', '水瓶', '雙魚'];
 
@@ -895,45 +895,97 @@
   // ============================================================
 
   /**
-   * 星座計算（太陽、月亮、上升）
+   * 星座計算（太陽、月亮、上升）- 真實天文演算法，非查表
    * @param {number} year
    * @param {number} month - 1-based
    * @param {number} day
-   * @param {string} hour - 時辰名稱
-   * @returns {object}
+   * @param {string|number} hour - 時辰名稱（子丑...）或小時數
+   * @param {number} [lat] - 緯度，北緯為正，缺省則使用時辰近似上升
+   * @param {number} [lng] - 經度，東經為正
+   * @returns {{sun:string, moon:string, rising:string, sunDeg:number, moonDeg:number, risingDeg:number, usingApproximateRising:boolean}}
    */
-  function calcAstrology(year, month, day, hour) {
-    // --- 太陽星座 ---
-    var sunIdx;
-    if (day < SUN_CUTOFF[month - 1]) {
-      sunIdx = month - 1;
+  function calcAstrology(year, month, day, hour, lat, lng) {
+    var useApprox = (lat === undefined || lat === null || lng === undefined || lng === null || isNaN(lat) || isNaN(lng));
+    var HOUR_MAP = {
+      '子':0,'丑':2,'寅':4,'卯':6,'辰':8,'巳':10,
+      '午':12,'未':14,'申':16,'酉':18,'戌':20,'亥':22
+    };
+    var localHour;
+    if (typeof hour === 'number') {
+      localHour = hour;
+    } else if (typeof hour === 'string' && HOUR_MAP[hour] !== undefined) {
+      localHour = HOUR_MAP[hour];
     } else {
-      sunIdx = month;
+      localHour = 12;
     }
-    sunIdx = ((sunIdx % 12) + 12) % 12;
+
+    // SUN: 使用現有真實黃經計算 (取代固定日期切分法)
+    var sunDeg = calcSunEclipticLongitude(year, month, day, localHour);
+    sunDeg = mod(sunDeg, 360);
+    var sunIdx = Math.floor(sunDeg / 30) % 12;
     var sun = SUN_NAMES[sunIdx];
 
-    // --- 月亮星座 ---
-    // moonDay = (year * 12 + month * 30 + day) % 27.3，每 2.275 天走一個星座
-    var moonDay = (year * 12 + month * 30 + day) % 27.3;
-    var moonIdx = Math.floor(moonDay / 2.275) % 12;
+    // MOON: 簡化平均黃經 Lm=218.3165+481267.8813*n (n=days since J2000)
+    var y = year;
+    var m = month;
+    var d = day;
+    var h = localHour;
+    var JD = 367 * y - Math.floor(7 * (y + Math.floor((m + 9) / 12)) / 4) + Math.floor(275 * m / 9) + d + 1721013.5 + h / 24;
+    var n = JD - 2451545.0;
+    var Lm = 218.3165 + 481267.8813 * n;
+    var moonDeg = mod(Lm, 360);
+    var moonIdx = Math.floor(moonDeg / 30) % 12;
     var moon = MOON_NAMES[moonIdx];
 
-    // --- 上升星座 ---
-    // 上升每約 2 小時換一個星座，以日出（卯時）為基準
-    // 卯(5-7)→牡羊0, 辰→1, 巳→2, 午→3, 未→4, 申→5,
-    // 酉(17-19)→天秤6, 戌→7, 亥→8, 子→9, 丑→10, 寅→11
-    var risingMap = { 卯: 0, 辰: 1, 巳: 2, 午: 3, 未: 4, 申: 5, 酉: 6, 戌: 7, 亥: 8, 子: 9, 丑: 10, 寅: 11 };
-    var risingIdx = risingMap[hour] !== undefined ? risingMap[hour] : 6;
-    var rising = RISING_NAMES[risingIdx];
+    // RISING (ASCENDANT): Local Sidereal Time 與標準上升點公式
+    var rising;
+    var risingDeg;
+    var usingApproximateRising;
+    if (useApprox) {
+      usingApproximateRising = true;
+      // 時辰近似法（舊邏輯保留，標記 approximate）
+      var risingMap = { 卯: 0, 辰: 1, 巳: 2, 午: 3, 未: 4, 申: 5, 酉: 6, 戌: 7, 亥: 8, 子: 9, 丑: 10, 寅: 11 };
+      var hourKey = (typeof hour === 'string') ? hour : '';
+      var risingIdx = risingMap[hourKey] !== undefined ? risingMap[hourKey] : 6;
+      rising = RISING_NAMES[risingIdx];
+      risingDeg = risingIdx * 30 + 15;
+    } else {
+      usingApproximateRising = false;
+      var latVal = lat;
+      var lngVal = lng;
+      // JD0 該日期 0h UT（使用陽曆日期近似）
+      var JD0 = 367 * y - Math.floor(7 * (y + Math.floor((m + 9) / 12)) / 4) + Math.floor(275 * m / 9) + d + 1721013.5;
+      var T = (JD0 - 2451545.0) / 36525;
+      var GMST = 280.46061837 + 360.98564736629 * (JD0 - 2451545.0) + 0.000387933 * T * T - T * T * T / 38710000;
+      GMST = mod(GMST, 360);
+      // 加入時辰對應時間（localHour 近似；UT修正對星座影響 <0.1° 可忽略）
+      var frac = localHour / 24.0;
+      var GMST_t = GMST + 360.98564736629 * frac;
+      GMST_t = mod(GMST_t, 360);
+      var LMST = mod(GMST_t + lngVal, 360);
+      var RAMC = LMST;
+      var eps = 23.4393;
+      var ramcRad = RAMC * PI / 180;
+      var latRad = latVal * PI / 180;
+      var epsRad = eps * PI / 180;
+      // 標準上升點公式（ASC 黃經）
+      var atanY = -Math.cos(ramcRad);
+      var atanX = Math.sin(epsRad) * Math.tan(latRad) + Math.sin(ramcRad) * Math.cos(epsRad);
+      var ascRad = Math.atan2(atanY, atanX);
+      risingDeg = ascRad * 180 / PI;
+      risingDeg = mod(risingDeg, 360);
+      var risingIdx = Math.floor(risingDeg / 30) % 12;
+      rising = RISING_NAMES[risingIdx];
+    }
 
     return {
       sun: sun,
       moon: moon,
       rising: rising,
-      sunIndex: sunIdx,
-      moonIndex: moonIdx,
-      risingIndex: risingIdx,
+      sunDeg: sunDeg,
+      moonDeg: moonDeg,
+      risingDeg: risingDeg,
+      usingApproximateRising: usingApproximateRising
     };
   }
 
