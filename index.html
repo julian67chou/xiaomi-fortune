@@ -192,12 +192,32 @@
     <div id="xf-tab-divine" class="xf-tab-content">
       <div class="xf-frame xf-card" id="xf-tarot-section">
         <h3 class="xf-card-title">塔羅牌</h3>
-        <p class="xf-card-subtitle">大阿爾克那</p>
+        <p class="xf-card-subtitle" id="xf-tarot-subtitle">牌陣選擇</p>
         <div class="xf-card-divider"></div>
-        <div class="xf-tarot-card">
-          <div class="xf-tarot-card-name" id="xf-tarot-name"></div>
-          <p class="xf-tarot-card-meaning" id="xf-tarot-meaning"></p>
-          <button class="xf-btn xf-btn-outline" id="xf-draw-tarot" style="margin-top:1rem">重新抽牌</button>
+
+        <!-- Spread selector -->
+        <div id="xf-tarot-spread-selector" style="display:flex;gap:0.35rem;justify-content:center;margin-bottom:0.35rem;flex-wrap:wrap;">
+          <button type="button" class="xf-spread-btn active" data-spread="single" style="font-size:0.78rem;padding:0.25rem 0.65rem;border:1px solid #c4a97d;background:#f9f5eb;border-radius:999px;cursor:pointer;color:#5a3e30;">單張指引</button>
+          <button type="button" class="xf-spread-btn" data-spread="three" style="font-size:0.78rem;padding:0.25rem 0.65rem;border:1px solid #c4a97d;background:#f9f5eb;border-radius:999px;cursor:pointer;color:#5a3e30;">三張牌陣</button>
+          <button type="button" class="xf-spread-btn" data-spread="celtic-cross" style="font-size:0.78rem;padding:0.25rem 0.65rem;border:1px solid #c4a97d;background:#f9f5eb;border-radius:999px;cursor:pointer;color:#5a3e30;">塞爾特十字</button>
+        </div>
+
+        <!-- Phase 4: 意念模式切換 -->
+        <div style="text-align:center;margin-bottom:0.5rem;">
+          <label style="font-size:0.78rem;color:#8b5e3c;cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:0.25rem;">
+            <input type="checkbox" id="xf-intention-mode" style="accent-color:#c23b22;">
+            <span>意念模式 🌟</span>
+          </label>
+          <div id="xf-intention-hint" style="font-size:0.68rem;color:#b8a88a;margin-top:0.15rem;display:none;max-width:260px;margin-left:auto;margin-right:auto;line-height:1.3;">
+            閉上眼睛，想著你的問題。當你覺得可以了，就點擊抽牌——那一瞬間，是我們兩個一起決定的。
+          </div>
+        </div>
+
+        <!-- Dynamic tarot cards display area -->
+        <div id="xf-tarot-display"></div>
+
+        <div style="text-align:center;margin-top:0.6rem;">
+          <button class="xf-btn xf-btn-outline" id="xf-draw-tarot">重新抽牌</button>
         </div>
       </div>
 
@@ -209,6 +229,14 @@
         <div style="text-align:center;margin-top:1rem">
           <button class="xf-btn xf-btn-outline" id="xf-draw-yijing">重新起卦</button>
         </div>
+      </div>
+
+      <!-- Phase 4: 命理整合建議區塊（只有抽過塔羅/易經才顯示） -->
+      <div class="xf-frame xf-card" id="xf-integration-section" style="margin-top:1rem; display:none;">
+        <h3 class="xf-card-title">小彌的命理整合建議</h3>
+        <p class="xf-card-subtitle">塔羅 · 易經 × 八字 · 紫微 · 占星</p>
+        <div class="xf-card-divider"></div>
+        <div id="xf-integration-insights" style="font-size:0.9rem;line-height:1.7;color:#5a3e30;"></div>
       </div>
     </div>
 
@@ -233,6 +261,9 @@
 </div>
 
 <script src="fortune-core.js"></script>
+<script src="fortune-tarot.js"></script>
+<script src="fortune-yijing.js"></script>
+<script src="fortune-integration.js"></script>
 <script src="fortune-ui.js"></script>
 </body>
 </html>
