@@ -47,6 +47,30 @@
   //           6月芒種(6), 7月小暑(7), 8月立秋(7), 9月白露(7),
   //           10月寒露(8), 11月立冬(7), 12月大雪(7), 1月小寒(6)
 
+  // 立春精確日期（1900-2100，格式：[month, day]）
+  // 立春通常在2月3-5日，每年略有不同
+  // 1900-1909: 2月5日, 1910-1929: 2月5-4日, 1930-1959: 2月4-5日,
+  // 1960-1991: 2月4-5日, 1992-2024: 2月3-5日, 2025-2100: 2月3-4日
+  // 這裡用標準近似值：1900-1919 2/5, 1920-1991 2/4 or 2/5, 1992-2024 2/4偏3, 2025+ 2/3
+  function getLichunDate(year) {
+    if (year < 1920) return { month: 2, day: 5 };
+    if (year < 1992) return { month: 2, day: 4 };
+    if (year < 2025) return { month: 2, day: 4 };
+    return { month: 2, day: 3 };
+  }
+
+  /**
+   * 計算八字年柱用的基準年份（以立春為界）
+   */
+  function getBaziBaseYear(year, month, day) {
+    var lichun = getLichunDate(year);
+    if (month < lichun.month || (month === lichun.month && day < lichun.day)) {
+      // 立春前：還是前一年
+      return year - 1;
+    }
+    return year;
+  }
+
   /**
    * 根據節氣決定月地支
    * @param {number} year
@@ -311,11 +335,8 @@
    */
   function calcBazi(year, month, day, hour) {
     // --- 年柱 ---
-    // 年柱以立春為界，簡化處理：1/1~立春前的年柱還是前一年的
-    var baseYear = year;
-    if (month === 1 && day < JIE_QI_DAY[11]) {
-      baseYear = year - 1; // 1月6日前→前一年
-    }
+    // 年柱以立春為界
+    var baseYear = getBaziBaseYear(year, month, day);
     var yearGanIdx = ((baseYear - 4) % 10 + 10) % 10;
     var yearZhiIdx = ((baseYear - 4) % 12 + 12) % 12;
     var zodiacIdx = yearZhiIdx; // 子0=鼠，直接對應
@@ -423,11 +444,7 @@
   // 天府系主星位置（從天府宮開始順排，跳過空位）
   const TIANFU_XI = [8, 9, 10, 11, 12, 13, 14, -1, 16]; // 索引→主星索引,-1=空
 
-  // 輔星
-  const ZIWEI_SUPPORT_STARS = {
-    kui_yue: ['', ''],
-
-  };
+  // 輔星（動態計算，不預設常數表）
 
   // 天魁天鉞（年干決定）：甲戊庚牛羊，乙己鼠猴鄉，丙丁豬雞位，六辛逢虎馬，壬癸蛇兔藏
   const KUI = [1, 0, 11, 10, 1, 0, 1, 2, 3, 3];  // 天魁
@@ -523,9 +540,8 @@
     }
 
     // --- 2. 定命宮天干（五虎遁）---
-    // 年柱天干
-    var baseYear = year;
-    if (month === 1 && day < JIE_QI_DAY[11]) baseYear = year - 1;
+    // 年柱天干（用立春判斷）
+    var baseYear = getBaziBaseYear(year, month, day);
     var yearGanIdx = ((baseYear - 4) % 10 + 10) % 10;
     var yearZhiIdx = ((baseYear - 4) % 12 + 12) % 12;
 
@@ -544,11 +560,7 @@
     var mingGongZhi = mingGongIdx; // 命宮地支
     var mingGongGan = palGan[mingGongZhi]; // 命宮天干
     
-    // 納音表（用 (天干索引, 地支索引) → 五行）
-    var nayin = {
-      // 直接從60甲子納音表查甲乙...戌亥
-    };
-    // 建一個快速查表
+    // 納音五行表（六十甲子→五行）
     var nayinMap = [
       '金','金','火','火','木','木','土','土','金','金',  // 0-9: 甲子~癸酉
       '火','火','水','水','土','土','金','金','木','木',  // 10-19: 甲戌~癸未
@@ -579,62 +591,25 @@
     var wuxingToJu = { '水': 2, '木': 3, '金': 4, '土': 5, '火': 6 };
     var juShu = wuxingToJu[wuxing];
     
-    // --- 4. 安紫微星 ---
-    // 公式：(生日 + (局數-1)) / 局數 取商
-    // 商奇數順行(從寅宮2開始)，商偶數逆行(從寅宮2開始)
-    // 商=0在寅宮(2)，商=1在卯宮(3)，商=-1在丑宮(1)
-    function calcZiweiPosition(birthDay, ju) {
-      var q = Math.floor((birthDay + (ju - 1)) / ju);
-      var ziweiPos;
-      if (birthDay % ju === 0) {
-        // 整除：從寅宮(2)逆數到商
-        ziweiPos = ((2 - q) % 12 + 12) % 12;
+    // --- 4. 安紫微星（標準公式）---
+    // 公式：紫微從寅宮(2)開始，每局數天一格
+    // quotient = floor((lunarDay - 1) / juShu)
+    // 整除：紫微 = 寅(2) + quotient - 1（商0在寅，商1在卯...）
+    // 不整除：紫微 = 寅(2) + quotient
+    function calcZiweiPos(lunarDay, juShu) {
+      var quotient = Math.floor((lunarDay - 1) / juShu);
+      if (lunarDay % juShu === 0) {
+        return ((2 + quotient - 1) % 12 + 12) % 12;
       } else {
-        // 有餘數：從寅宮(2)順數到商
-        ziweiPos = ((2 + q) % 12 + 12) % 12;
-      }
-      return ziweiPos;
-    }
-
-    // 等等，紫微安星公式比較複雜，查一下再寫
-    // 標準公式：紫微星位置用生日除以局數
-    // 商=0→寅(2)，商=1→卯(3)，商=2→辰(4)...商=n→寅+n
-    // 餘數=0→順行，餘數>0→逆行
-    // 餘數=0且商=0的情況→紫微在寅
-    
-    // 更正：餘數決定順逆行，商決定偏移
-    function calcZiweiPos(birthDay, ju) {
-      var r = birthDay % ju;
-      var q = Math.floor(birthDay / ju);
-      if (r === 0) {
-        // 整除：從寅宮(2)順數 q-1 格
-        return ((2 + q - 1) % 12 + 12) % 12;
-      } else {
-        // 有餘數：從寅宮(2)順數 q 格再逆數一段...
-        // 更標準的算法：
-        // 紫微 = 寅宮 + (生日-1) / 局數 的某種取整
-        // 商 = Math.floor((生日 - 1) / 局數)
-        // 餘 = (生日 - 1) % 局數
-        // 紫微位置 = 寅 + 商 + 1（如果餘>0）... 
-        // 更可靠的：直接查表
-        
-        // 用標準公式：紫微從寅宮開始，每局數天一格
-        // 位置 = 2 + Math.floor((生日 - 1) / 局數)
-        return (2 + Math.floor((birthDay - 1) / ju)) % 12;
+        return ((2 + quotient) % 12 + 12) % 12;
       }
     }
 
-    var ziweiPos = calcZiweiPos(day, juShu);
-    // 經過思考，最簡潔的公式就是 floor((生日-1)/局數) 從寅宮起算
-    // 然後紫微在...等下，day是陽曆日不是農曆日
-    // 紫微斗數用農曆生日! 但使用者輸入的是陽曆
-    
-    // 轉農曆日（紫微斗數用農曆生日）
+    // 紫微斗數用農曆生日
     var lunar = solar2lunar(year, month, day);
     var lunarDay = lunar.lunarDay;
     
-    // 用 floor((生日-1)/局數) 從寅宮(2)開始
-    ziweiPos = (2 + Math.floor((lunarDay - 1) / juShu)) % 12;
+    var ziweiPos = calcZiweiPos(lunarDay, juShu);
     
     // --- 5. 安14主星 ---
     var tianfuPos = ((4 - ziweiPos) % 12 + 12) % 12;
@@ -892,7 +867,10 @@
       return String(n).split('').reduce(function (a, c) { return a + parseInt(c, 10); }, 0);
     }
     var total = sumDigits(year) + sumDigits(month) + sumDigits(day);
-    while (total >= 10) total = sumDigits(total);
+    // 保留主數 11, 22, 33 不繼續縮減
+    while (total >= 10 && total !== 11 && total !== 22 && total !== 33) {
+      total = sumDigits(total);
+    }
     return total;
   }
 
@@ -1037,7 +1015,6 @@
     MOON_NAMES: MOON_NAMES,
     RISING_NAMES: RISING_NAMES,
     ZIWEI_MAIN_STARS: ZIWEI_MAIN_STARS,
-    ZIWEI_SUPPORT_STARS: ZIWEI_SUPPORT_STARS,
     ZIWEI_PALACES: ZIWEI_PALACES,
     RENLEITU_TYPES: RENLEITU_TYPES,
     HOUR_ZHI_INDEX: HOUR_ZHI_INDEX,
