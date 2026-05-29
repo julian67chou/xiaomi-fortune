@@ -989,11 +989,11 @@
       var ramcRad = RAMC * PI / 180;
       var latRad = latVal * PI / 180;
       var epsRad = eps * PI / 180;
-      // 標準上升點公式（ASC 黃經）
+      // 標準上升點公式（ASC 黃經 — atan2 算出來需要 +180° 才是上升）
       var atanY = -Math.cos(ramcRad);
       var atanX = Math.sin(epsRad) * Math.tan(latRad) + Math.sin(ramcRad) * Math.cos(epsRad);
       var ascRad = Math.atan2(atanY, atanX);
-      risingDeg = ascRad * 180 / PI;
+      risingDeg = ascRad * 180 / PI + 180;
       risingDeg = mod(risingDeg, 360);
       var risingIdx = Math.floor(risingDeg / 30) % 12;
       rising = RISING_NAMES[risingIdx];
