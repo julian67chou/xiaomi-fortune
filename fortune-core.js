@@ -797,6 +797,8 @@
     return res;
   }
 
+  var RENLEITU_TYPES = ['顯示者', '生產者', '顯示生產者', '投射者', '反映者'];
+
   /**
    * 人類圖計算（基於太陽位置）
    * 註：實際人類圖需要太陽+地球+其他天體位置，本實作為太陽位置簡化版
@@ -809,7 +811,18 @@
   function calcRenleitu(year, month, day, hour) {
     var lambda = calcSunEclipticLongitude(year, month, day, hour);
     var sunGate = calcSunGate(lambda);
-    var definedCenters = getCentersForGate(sunGate);
+    var earthGate = calcSunGate(mod(lambda + 180, 360));
+    // 收集 Sun 與 Earth 兩個閘門的 centers，聯集去重
+    var sunCenters = getCentersForGate(sunGate);
+    var earthCenters = getCentersForGate(earthGate);
+    var centerSet = {};
+    for (var i = 0; i < sunCenters.length; i++) { centerSet[sunCenters[i]] = true; }
+    for (var i = 0; i < earthCenters.length; i++) { centerSet[earthCenters[i]] = true; }
+    var definedCenters = [];
+    var cnames = ['Head', 'Ajna', 'Throat', 'G', 'Heart', 'Sacral', 'Spleen', 'SolarPlexus', 'Root'];
+    for (var i = 0; i < cnames.length; i++) {
+      if (centerSet[cnames[i]]) definedCenters.push(cnames[i]);
+    }
     var definedMap = {};
     for (var i = 0; i < definedCenters.length; i++) {
       definedMap[definedCenters[i]] = true;
@@ -856,13 +869,24 @@
       strategy = '等待月亮週期';
     }
 
+    var channel = sunGate + '-' + earthGate;
+    var description = '太陽閘門 ' + sunGate + ' 與地球閘門 ' + earthGate + '（通道 ' + channel + '）';
+
     return {
       sunGate: sunGate,
+      earthGate: earthGate,
       sunLongitude: lambda,
       definedCenters: definedCenters,
       type: type,
       authority: authority,
       strategy: strategy,
+      channel: channel,
+      description: description,
+      humanDesignInfo: {
+        sunGate: sunGate,
+        earthGate: earthGate,
+        channel: channel
+      }
     };
   }
 
