@@ -936,20 +936,24 @@
       return '亥時';
     }
     var shichen = getShichenName(localHour);
+    // 台灣時區轉 UTC（用於天文計算）
+    var TZ_OFFSET = 8;
+    var utHour = localHour - TZ_OFFSET;
+    var utDate = new Date(Date.UTC(year, month - 1, day, utHour));
+    var utYear = utDate.getUTCFullYear();
+    var utMonth = utDate.getUTCMonth() + 1;
+    var utDay = utDate.getUTCDate();
+    var utHourFrac = utDate.getUTCHours() + utDate.getUTCMinutes() / 60;
 
     // SUN: 使用現有真實黃經計算 (取代固定日期切分法)
-    var sunDeg = calcSunEclipticLongitude(year, month, day, localHour);
+    var sunDeg = calcSunEclipticLongitude(utYear, utMonth, utDay, utHourFrac);
     sunDeg = mod(sunDeg, 360);
     var sunIdx = Math.floor(sunDeg / 30) % 12;
     var sun = SUN_NAMES[sunIdx];
 
-    // MOON: 簡化平均黃經 Lm=218.3165+481267.8813*n (n=days since J2000)
-    var y = year;
-    var m = month;
-    var d = day;
-    var h = localHour;
-    var JD = 367 * y - Math.floor(7 * (y + Math.floor((m + 9) / 12)) / 4) + Math.floor(275 * m / 9) + d + 1721013.5 + h / 24;
-    var n = JD - 2451545.0;
+    // MOON: 簡化平均黃經 Lm=218.3165+481267.8813*n (n=centuries since J2000)
+    var JD = 367 * utYear - Math.floor(7 * (utYear + Math.floor((utMonth + 9) / 12)) / 4) + Math.floor(275 * utMonth / 9) + utDay + 1721013.5 + utHourFrac / 24;
+    var n = (JD - 2451545.0) / 36525;
     var Lm = 218.3165 + 481267.8813 * n;
     var moonDeg = mod(Lm, 360);
     var moonIdx = Math.floor(moonDeg / 30) % 12;
@@ -971,14 +975,13 @@
       usingApproximateRising = false;
       var latVal = lat;
       var lngVal = lng;
-      // JD0 該日期 0h UT（使用陽曆日期近似）
-      var JD0 = 367 * y - Math.floor(7 * (y + Math.floor((m + 9) / 12)) / 4) + Math.floor(275 * m / 9) + d + 1721013.5;
+      // JD0 該日期 0h UT
+      var JD0 = 367 * utYear - Math.floor(7 * (utYear + Math.floor((utMonth + 9) / 12)) / 4) + Math.floor(275 * utMonth / 9) + utDay + 1721013.5;
       var T = (JD0 - 2451545.0) / 36525;
       var GMST = 280.46061837 + 360.98564736629 * (JD0 - 2451545.0) + 0.000387933 * T * T - T * T * T / 38710000;
       GMST = mod(GMST, 360);
-      // 加入時辰對應時間（localHour 近似；UT修正對星座影響 <0.1° 可忽略）
-      var frac = localHour / 24.0;
-      var GMST_t = GMST + 360.98564736629 * frac;
+      // 加入小時偏移（utHourFrac 是 UT 的小數日）
+      var GMST_t = GMST + 360.98564736629 * (utHourFrac / 24);
       GMST_t = mod(GMST_t, 360);
       var LMST = mod(GMST_t + lngVal, 360);
       var RAMC = LMST;
