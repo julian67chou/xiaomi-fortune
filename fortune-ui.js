@@ -183,9 +183,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var renleituResult = f.calcRenleitu(year, month, day, birthFloat);
     // 出生地經緯度（選填，用於精確上升計算）
     var lat = null, lng = null;
-    var placeInput = document.getElementById('xf-place');
     if (placeInput && placeInput.value.trim()) {
-      var place = placeInput.value.trim();
+      place = placeInput.value.trim();
       var CITY_COORDS = {
         '台北': [25.0330, 121.5654], '臺北': [25.0330, 121.5654],
         '新北': [25.0170, 121.4620], '臺北': [25.0330, 121.5654],
