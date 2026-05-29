@@ -181,7 +181,35 @@ document.addEventListener('DOMContentLoaded', function () {
     var baziResult = f.calcBazi(year, month, day, hourZhi);
     var ziweiResult = f.calcZiwei(year, month, day, hourZhi, genderText);
     var renleituResult = f.calcRenleitu(year, month, day, birthFloat);
-    var astrologyResult = f.calcAstrology(year, month, day, birthFloat);
+    // 出生地經緯度（選填，用於精確上升計算）
+    var lat = null, lng = null;
+    var placeInput = document.getElementById('xf-place');
+    if (placeInput && placeInput.value.trim()) {
+      var place = placeInput.value.trim();
+      var CITY_COORDS = {
+        '台北': [25.0330, 121.5654], '臺北': [25.0330, 121.5654],
+        '新北': [25.0170, 121.4620], '臺北': [25.0330, 121.5654],
+        '桃園': [24.9936, 121.3010],
+        '新竹': [24.8138, 120.9675], '臺中': [24.1469, 120.6839],
+        '台中': [24.1469, 120.6839], '臺南': [22.9997, 120.2270],
+        '台南': [22.9997, 120.2270], '高雄': [22.6273, 120.3014],
+        '基隆': [25.1276, 121.7392], '宜蘭': [24.6929, 121.7195],
+        '花蓮': [23.9871, 121.6010], '臺東': [22.7563, 121.1418],
+        '台東': [22.7563, 121.1418], '屏東': [22.6773, 120.4880],
+        '嘉義': [23.4800, 120.4499], '雲林': [23.7092, 120.4313],
+        '南投': [23.9600, 120.9760], '彰化': [24.0517, 120.5358],
+        '苗栗': [24.5602, 120.8212], '澎湖': [23.5711, 119.5793],
+        '金門': [24.4368, 118.3186], '連江': [26.1500, 119.9500],
+        '香港': [22.3193, 114.1694], '澳門': [22.1987, 113.5439],
+        '上海': [31.2304, 121.4737], '北京': [39.9042, 116.4074],
+      };
+      var coords = CITY_COORDS[place] || CITY_COORDS[place.replace(/[縣市]/g, '')];
+      if (coords) {
+        lat = coords[0];
+        lng = coords[1];
+      }
+    }
+    var astrologyResult = f.calcAstrology(year, month, day, birthFloat, lat, lng);
     var lifePathNum = f.calcLifePath(year, month, day);
     var nameScience = f.generateNameScience(surname, givenname);
 
@@ -395,7 +423,7 @@ document.addEventListener('DOMContentLoaded', function () {
         '<div class="xf-computed-summary">' +
         '<p>☀️ 太陽：<strong>' + a.sun + '座</strong></p>' +
         '<p>🌙 月亮：<strong>' + a.moon + '座</strong></p>' +
-        '<p>⬆️ 上升：<strong>' + a.rising + '座</strong></p>' +
+        '<p>⬆️ 上升：<strong>' + a.rising + '座</strong>' + (a.usingApproximateRising ? '<span style=\"font-size:0.7rem;color:#b8a88a;margin-left:0.4rem\">(近似值，輸入出生地後更準確)</span>' : '<span style=\"font-size:0.7rem;color:#6b8e6b;margin-left:0.4rem\">(經緯度計算)</span>') + '</p>' +
         '<p>🕐 時辰：<strong>' + (a.shichen || '—') + '</strong></p>' +
         '</div>' +
         (llm && llm.astrology ? '<div class="xf-llm-reading"><p>' + llm.astrology + '</p></div>' : '');

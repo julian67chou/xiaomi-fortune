@@ -965,7 +965,7 @@
     var usingApproximateRising;
     if (useApprox) {
       usingApproximateRising = true;
-      // 時辰近似法（舊邏輯保留，標記 approximate）
+      // 時辰近似法（無經緯度時的 fallback，使用 localHour 推算）
       var risingMap = { 卯: 0, 辰: 1, 巳: 2, 午: 3, 未: 4, 申: 5, 酉: 6, 戌: 7, 亥: 8, 子: 9, 丑: 10, 寅: 11 };
       var hourKey = (typeof hour === 'string') ? hour : '';
       var risingIdx = risingMap[hourKey] !== undefined ? risingMap[hourKey] : 6;
