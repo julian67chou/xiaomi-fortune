@@ -74,9 +74,66 @@ document.addEventListener('DOMContentLoaded', function () {
   var surnameInput = document.getElementById('xf-surname');
   var givennameInput = document.getElementById('xf-givenname');
   var dateInput = document.getElementById('xf-birthday');
-  var hourSelect = document.getElementById('xf-hour');
   var placeInput = document.getElementById('xf-place');
   var genderInputs = document.querySelectorAll('input[name="gender"]');
+
+  // 新增：精確時間輸入 + 不確定時間 checkbox + 即時時辰顯示
+  var timeUnknownChk = document.getElementById('xf-time-unknown');
+  var hourNumInput = document.getElementById('xf-hour-num');
+  var minNumInput = document.getElementById('xf-min-num');
+  var shichenEl = document.getElementById('xf-shichen');
+  var timeInputsWrap = document.getElementById('xf-time-inputs');
+  var shichenDisplayWrap = document.getElementById('xf-shichen-display');
+
+  /* 時辰計算（與 fortune-core 一致） */
+  function getShichen (hour, minute) {
+    var h = parseInt(hour, 10) || 0;
+    var m = parseInt(minute, 10) || 0;
+    var totalMin = h * 60 + m;
+    if (totalMin >= 1380 || totalMin < 60) return '子時';
+    if (totalMin < 180) return '丑時';
+    if (totalMin < 300) return '寅時';
+    if (totalMin < 420) return '卯時';
+    if (totalMin < 540) return '辰時';
+    if (totalMin < 660) return '巳時';
+    if (totalMin < 780) return '午時';
+    if (totalMin < 900) return '未時';
+    if (totalMin < 1020) return '申時';
+    if (totalMin < 1140) return '酉時';
+    if (totalMin < 1260) return '戌時';
+    return '亥時';
+  }
+
+  function updateLiveShichen () {
+    if (!hourNumInput || !minNumInput || !shichenEl) return;
+    var h = parseInt(hourNumInput.value, 10);
+    if (isNaN(h)) h = 12;
+    h = Math.max(0, Math.min(23, h));
+    var m = parseInt(minNumInput.value, 10);
+    if (isNaN(m)) m = 0;
+    m = Math.max(0, Math.min(59, m));
+    shichenEl.textContent = getShichen(h, m);
+  }
+
+  if (hourNumInput) {
+    hourNumInput.addEventListener('input', updateLiveShichen);
+    hourNumInput.addEventListener('change', updateLiveShichen);
+  }
+  if (minNumInput) {
+    minNumInput.addEventListener('input', updateLiveShichen);
+    minNumInput.addEventListener('change', updateLiveShichen);
+  }
+
+  if (timeUnknownChk) {
+    timeUnknownChk.addEventListener('change', function () {
+      var hide = this.checked;
+      if (timeInputsWrap) timeInputsWrap.style.display = hide ? 'none' : 'flex';
+      if (shichenDisplayWrap) shichenDisplayWrap.style.display = hide ? 'none' : 'inline-block';
+    });
+  }
+
+  // 初始顯示目前時辰
+  setTimeout(updateLiveShichen, 30);
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -85,7 +142,6 @@ document.addEventListener('DOMContentLoaded', function () {
     var givenname = givennameInput.value.trim();
     var fullName = surname + givenname;
     var dateVal = dateInput.value;
-    var hour = hourSelect.value;
     var place = placeInput.value.trim();
     var gender = '';
     genderInputs.forEach(function (g) { if (g.checked) gender = g.value; });
@@ -98,24 +154,40 @@ document.addEventListener('DOMContentLoaded', function () {
     var year = dateParts[0], month = dateParts[1], day = dateParts[2];
     var genderText = gender === 'male' ? '男' : '女';
 
+    // ===== 新時間處理：支援精確時分 + 不確定時間 =====
+    var useUnknown = !!(timeUnknownChk && timeUnknownChk.checked);
+    var birthFloat, shichenName, hourText;
+    if (useUnknown || !hourNumInput || !minNumInput) {
+      birthFloat = 12.0;
+      shichenName = '午時';
+      hourText = '不確定（使用中午12:00）';
+    } else {
+      var hh = parseInt(hourNumInput.value, 10);
+      if (isNaN(hh)) hh = 12;
+      hh = Math.max(0, Math.min(23, hh));
+      var mm = parseInt(minNumInput.value, 10);
+      if (isNaN(mm)) mm = 0;
+      mm = Math.max(0, Math.min(59, mm));
+      birthFloat = hh + (mm / 60);
+      shichenName = getShichen(hh, mm);
+      var hhStr = (hh < 10 ? '0' : '') + hh;
+      var mmStr = (mm < 10 ? '0' : '') + mm;
+      hourText = shichenName + ' (' + hhStr + ':' + mmStr + ')';
+    }
+    var hourZhi = shichenName ? shichenName.replace('時', '') : '午';
+
     // 用 XiaomiFortune 計算所有命理數據
     var f = window.XiaomiFortune;
-    var baziResult = f.calcBazi(year, month, day, hour || '子');
-    var ziweiResult = f.calcZiwei(year, month, day, hour || '子', genderText);
-    var renleituResult = f.calcRenleitu(year, month, day, hour || '子');
-    var astrologyResult = f.calcAstrology(year, month, day, hour || '子');
+    var baziResult = f.calcBazi(year, month, day, hourZhi);
+    var ziweiResult = f.calcZiwei(year, month, day, hourZhi, genderText);
+    var renleituResult = f.calcRenleitu(year, month, day, birthFloat);
+    var astrologyResult = f.calcAstrology(year, month, day, birthFloat);
     var lifePathNum = f.calcLifePath(year, month, day);
     var nameScience = f.generateNameScience(surname, givenname);
 
     // 塔羅 & 易經（隨機，每次不同）
     var tarotCard = TAROT_MAJOR[Math.floor(Math.random() * TAROT_MAJOR.length)];
     var yijingLines = castYijing();
-
-    var hourText = '不確定';
-    if (hour) {
-      var hourOpt = document.getElementById('xf-hour');
-      hourText = hourOpt.options[hourOpt.selectedIndex].text;
-    }
 
     // 儲存全域供渲染用
     window.xfResult = {
@@ -316,7 +388,7 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('xf-renleitu-text').innerHTML = '<p>' + llm.renleitu + '</p>';
     }
 
-    // 占星分頁
+    // 占星分頁（加入時辰顯示）
     if (c && c.astrology) {
       var a = c.astrology;
       document.getElementById('xf-astrology-text').innerHTML =
@@ -324,6 +396,7 @@ document.addEventListener('DOMContentLoaded', function () {
         '<p>☀️ 太陽：<strong>' + a.sun + '座</strong></p>' +
         '<p>🌙 月亮：<strong>' + a.moon + '座</strong></p>' +
         '<p>⬆️ 上升：<strong>' + a.rising + '座</strong></p>' +
+        '<p>🕐 時辰：<strong>' + (a.shichen || '—') + '</strong></p>' +
         '</div>' +
         (llm && llm.astrology ? '<div class="xf-llm-reading"><p>' + llm.astrology + '</p></div>' : '');
     } else if (llm && llm.astrology) {

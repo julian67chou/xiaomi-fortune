@@ -919,6 +919,24 @@
       localHour = 12;
     }
 
+    // 計算時辰名稱（支援小數小時，如 8.5 = 08:30）
+    function getShichenName(h) {
+      var totalMin = h * 60;
+      if (totalMin >= 23 * 60 || totalMin < 1 * 60) return '子時';
+      if (totalMin < 3 * 60) return '丑時';
+      if (totalMin < 5 * 60) return '寅時';
+      if (totalMin < 7 * 60) return '卯時';
+      if (totalMin < 9 * 60) return '辰時';
+      if (totalMin < 11 * 60) return '巳時';
+      if (totalMin < 13 * 60) return '午時';
+      if (totalMin < 15 * 60) return '未時';
+      if (totalMin < 17 * 60) return '申時';
+      if (totalMin < 19 * 60) return '酉時';
+      if (totalMin < 21 * 60) return '戌時';
+      return '亥時';
+    }
+    var shichen = getShichenName(localHour);
+
     // SUN: 使用現有真實黃經計算 (取代固定日期切分法)
     var sunDeg = calcSunEclipticLongitude(year, month, day, localHour);
     sunDeg = mod(sunDeg, 360);
@@ -985,7 +1003,8 @@
       sunDeg: sunDeg,
       moonDeg: moonDeg,
       risingDeg: risingDeg,
-      usingApproximateRising: usingApproximateRising
+      usingApproximateRising: usingApproximateRising,
+      shichen: shichen
     };
   }
 

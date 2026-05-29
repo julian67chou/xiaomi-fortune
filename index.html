@@ -54,22 +54,20 @@
             <input type="date" id="xf-birthday" class="xf-input" required>
           </div>
           <div class="xf-form-group">
-            <label class="xf-label" for="xf-hour">出生時辰</label>
-            <select id="xf-hour" class="xf-select">
-              <option value="">不確定</option>
-              <option value="子">子時 (23:00-01:00)</option>
-              <option value="丑">丑時 (01:00-03:00)</option>
-              <option value="寅">寅時 (03:00-05:00)</option>
-              <option value="卯">卯時 (05:00-07:00)</option>
-              <option value="辰">辰時 (07:00-09:00)</option>
-              <option value="巳">巳時 (09:00-11:00)</option>
-              <option value="午">午時 (11:00-13:00)</option>
-              <option value="未">未時 (13:00-15:00)</option>
-              <option value="申">申時 (15:00-17:00)</option>
-              <option value="酉">酉時 (17:00-19:00)</option>
-              <option value="戌">戌時 (19:00-21:00)</option>
-              <option value="亥">亥時 (21:00-23:00)</option>
-            </select>
+            <label class="xf-label">出生時間</label>
+            <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.82rem;margin-bottom:0.35rem;cursor:pointer;user-select:none;color:#5a3e30;">
+              <input type="checkbox" id="xf-time-unknown" style="accent-color:#c23b22;width:15px;height:15px;margin:0;">
+              <span>不確定時間（使用中午12:00）</span>
+            </label>
+            <div id="xf-time-inputs" style="display:flex;align-items:center;gap:0.3rem;flex-wrap:wrap;">
+              <input type="number" id="xf-hour-num" class="xf-input" style="width:3.6rem;padding:0.4rem 0.4rem;font-size:0.92rem;text-align:center;" min="0" max="23" step="1" value="12" aria-label="時">
+              <span style="font-size:0.85rem;color:#5a3e30;white-space:nowrap;">時</span>
+              <input type="number" id="xf-min-num" class="xf-input" style="width:3.6rem;padding:0.4rem 0.4rem;font-size:0.92rem;text-align:center;" min="0" max="59" step="5" value="0" aria-label="分">
+              <span style="font-size:0.85rem;color:#5a3e30;white-space:nowrap;">分</span>
+            </div>
+            <div id="xf-shichen-display" style="margin-top:0.25rem;font-size:0.78rem;color:#5a3e30;background:rgba(196,169,125,0.12);padding:1px 5px;border-radius:3px;display:inline-block;">
+              目前時辰：<strong id="xf-shichen" style="color:#8b5e3c;">午時</strong>
+            </div>
           </div>
         </div>
 
